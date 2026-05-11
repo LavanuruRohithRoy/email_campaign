@@ -1,1 +1,21 @@
 from .auth import LoginRequest, LoginResponse, RefreshRequest, TokenResponse, UserResponse
+from .contact import (
+	CSVPreviewResponse,
+	ContactCreate,
+	ContactDetailResponse,
+	ContactListCollectionResponse,
+	ContactListCreate,
+	ContactListDetail,
+	ContactListResponse,
+	ContactListUpdate,
+	ContactResponse,
+	ContactUpdate,
+	ImportJobResponse,
+	SegmentCollectionResponse,
+	SegmentCountResponse,
+	SegmentCreate,
+	SegmentResponse,
+	SegmentRuleCondition,
+	SegmentRules,
+	SegmentUpdate,
+)

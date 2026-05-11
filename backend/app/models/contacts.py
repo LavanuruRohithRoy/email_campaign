@@ -45,6 +45,7 @@ class Contact(Base):
     email: Mapped[str] = mapped_column(String(320), nullable=False)
     first_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
     last_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    phone: Mapped[str | None] = mapped_column(String(64), nullable=True)
     status: Mapped[ContactStatus] = mapped_column(
         Enum(ContactStatus, name="contact_status"),
         nullable=False,

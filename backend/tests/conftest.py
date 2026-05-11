@@ -13,7 +13,10 @@ from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sess
 from sqlalchemy.pool import NullPool
 from sqlalchemy import delete
 
+from app.models.campaigns import Campaign, CampaignSend
+from app.models.contacts import Contact, ContactList, ContactListMember, ImportJob, Segment, SuppressionList
 from app.models.core import Organisation, User, RefreshToken
+from app.models.tracking import EmailEvent, TrackingToken
 from app.models.enums import UserRole
 from app.utils.security import hash_password
 
@@ -55,6 +58,16 @@ async def redis_client() -> AsyncGenerator[Redis, None]:
 async def seed_user() -> AsyncGenerator[User, None]:
     async with async_session_maker() as session:
         # clean tables
+        await session.execute(delete(EmailEvent))
+        await session.execute(delete(TrackingToken))
+        await session.execute(delete(CampaignSend))
+        await session.execute(delete(ImportJob))
+        await session.execute(delete(ContactListMember))
+        await session.execute(delete(Contact))
+        await session.execute(delete(ContactList))
+        await session.execute(delete(Segment))
+        await session.execute(delete(SuppressionList))
+        await session.execute(delete(Campaign))
         await session.execute(delete(RefreshToken))
         await session.execute(delete(User))
         await session.execute(delete(Organisation))
@@ -78,6 +91,16 @@ async def seed_user() -> AsyncGenerator[User, None]:
         yield user
 
         # cleanup after test
+        await session.execute(delete(EmailEvent))
+        await session.execute(delete(TrackingToken))
+        await session.execute(delete(CampaignSend))
+        await session.execute(delete(ImportJob))
+        await session.execute(delete(ContactListMember))
+        await session.execute(delete(Contact))
+        await session.execute(delete(ContactList))
+        await session.execute(delete(Segment))
+        await session.execute(delete(SuppressionList))
+        await session.execute(delete(Campaign))
         await session.execute(delete(RefreshToken))
         await session.execute(delete(User))
         await session.execute(delete(Organisation))

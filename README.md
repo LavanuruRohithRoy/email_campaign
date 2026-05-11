@@ -1,10 +1,10 @@
 # Email Campaign Platform
 
-A multi-tenant email campaign platform built with FastAPI, PostgreSQL, Redis, AWS SES/S3/SQS, and React + Vite. The product is designed to support team-based campaign management with role-based access, secure authentication, campaign tracking, and operational reliability for production email delivery workflows.
+A multi-tenant email campaign platform built with FastAPI, PostgreSQL, Redis, AWS SES/S3/SQS, and React + Vite. The application is structured for org-scoped team workflows, secure authentication, and a testable service-layer architecture.
 
 ## Current Stage
 
-This stage focuses on the foundation for authentication, authorization, database reliability, and test stability. The backend now supports M1 Auth end-to-end, including JWT login, refresh token rotation, logout, and role-based access control. The database migration path has also been stabilized so the schema can be created and upgraded cleanly.
+This stage now includes M1 Auth plus M2 Contacts. Authentication, refresh rotation, logout, RBAC, rate limiting, and the initial contact-management workflows are implemented and covered by tests. The database migration path is stable and applies cleanly from the baseline schema through the contacts upgrade.
 
 ## What Is Implemented
 
@@ -29,6 +29,16 @@ This stage focuses on the foundation for authentication, authorization, database
 - Proper 429 response behavior after repeated failed logins
 - Secure token handling and password verification logic
 
+### M2 Contacts
+- Contact list create, update, delete, and list operations
+- Contact CRUD with org-scoped validation
+- Contact list membership management
+- Contact detail responses with list memberships and event history
+- CSV preview and import job scaffolding
+- Segment create, update, delete, and live count support
+- Suppression-list checks on contact creation and import paths
+- Org-scoped filtering across lists, contacts, segments, and imports
+
 ### Database and Migration Stability
 - Alembic migration path stabilized
 - Initial schema migration made safe for enum creation
@@ -48,6 +58,8 @@ This stage focuses on the foundation for authentication, authorization, database
   - refresh token reuse rejection
   - role guard denial
   - logout invalidation
+- Contact test coverage for lists, contacts, suppression, CSV preview, import job creation, segments, and RBAC
+- Full backend suite currently passes with 24 tests green
 
 ## Project Structure
 
