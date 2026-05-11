@@ -10,9 +10,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.models.campaign_recipients import CampaignRecipient
 from app.models.campaigns import Campaign, CampaignSend, Template
 from app.models.contacts import Contact, ContactList, ContactListMember, SuppressionList
-from app.models.enums import CampaignStatus, ContactStatus
+from app.models.enums import CampaignStatus, ContactStatus, SendStatus
 from app.schemas.campaign import CampaignCreate, CampaignRecipientsInput, CampaignScheduleInput, CampaignUpdate
 from app.services.segment_service import evaluate_segment_contacts
+from app.utils.ses import enqueue_send_job
+from app.config import settings
 
 
 def _recipient_rows(campaign_id: UUID, target_ids: Iterable[UUID], target_type: str, is_exclusion: bool) -> list[CampaignRecipient]:
@@ -291,3 +293,114 @@ async def cancel_schedule(org_id: UUID, campaign_id: UUID, db: AsyncSession) -> 
     await db.commit()
     await db.refresh(campaign)
     return campaign
+
+
+async def enqueue_campaign(org_id: UUID, campaign_id: UUID, db: AsyncSession) -> int:
+    campaign = await get_campaign(org_id, campaign_id, db)
+    if campaign.status not in (CampaignStatus.DRAFT, CampaignStatus.SCHEDULED):
+        raise ValueError("INVALID_STATUS_FOR_SEND")
+    if not campaign.template_id:
+        raise ValueError("NO_TEMPLATE")
+    contact_ids = await resolve_recipients(org_id, campaign_id, db)
+    if not contact_ids:
+        raise ValueError("NO_RECIPIENTS")
+    campaign.status = CampaignStatus.SENDING
+    await db.commit()
+    for contact_id in contact_ids:
+        db.add(
+            CampaignSend(
+                campaign_id=campaign_id,
+                contact_id=contact_id,
+                status=SendStatus.QUEUED,
+            )
+        )
+    await db.commit()
+    for contact_id in contact_ids:
+        await enqueue_send_job(
+            {
+                "campaign_id": str(campaign_id),
+                "contact_id": str(contact_id),
+                "org_id": str(org_id),
+            }
+        )
+    return len(contact_ids)
+
+
+async def pause_campaign(org_id: UUID, campaign_id: UUID, db: AsyncSession) -> Campaign:
+    campaign = await get_campaign(org_id, campaign_id, db)
+    if campaign.status != CampaignStatus.SENDING:
+        raise ValueError("NOT_SENDING")
+    campaign.status = CampaignStatus.PAUSED
+    await db.commit()
+    await db.refresh(campaign)
+    return campaign
+
+
+async def resume_campaign(org_id: UUID, campaign_id: UUID, db: AsyncSession) -> Campaign:
+    campaign = await get_campaign(org_id, campaign_id, db)
+    if campaign.status != CampaignStatus.PAUSED:
+        raise ValueError("NOT_PAUSED")
+    queued = await db.execute(
+        select(CampaignSend).where(
+            CampaignSend.campaign_id == campaign_id,
+            CampaignSend.status == SendStatus.QUEUED,
+        )
+    )
+    campaign.status = CampaignStatus.SENDING
+    await db.commit()
+    for send in queued.scalars().all():
+        await enqueue_send_job(
+            {
+                "campaign_id": str(campaign_id),
+                "contact_id": str(send.contact_id),
+                "org_id": str(org_id),
+            }
+        )
+    await db.refresh(campaign)
+    return campaign
+
+
+async def get_send_progress(org_id: UUID, campaign_id: UUID, db: AsyncSession) -> dict[str, int | str]:
+    campaign = await get_campaign(org_id, campaign_id, db)
+    total = await db.scalar(
+        select(func.count(CampaignSend.id)).where(
+            CampaignSend.campaign_id == campaign_id,
+        )
+    )
+    sent = await db.scalar(
+        select(func.count(CampaignSend.id)).where(
+            CampaignSend.campaign_id == campaign_id,
+            CampaignSend.status == SendStatus.SENT,
+        )
+    )
+    return {
+        "total": int(total or 0),
+        "sent": int(sent or 0),
+        "status": campaign.status.value,
+    }
+
+
+async def send_test_email(campaign_id: UUID, org_id: UUID, addresses: list[str], db: AsyncSession) -> None:
+    from app.utils.ses import send_email_via_ses
+
+    campaign = await get_campaign(org_id, campaign_id, db)
+    if not campaign.template_id:
+        raise ValueError("NO_TEMPLATE")
+    template = await db.get(Template, campaign.template_id)
+    if template is None:
+        raise ValueError("NO_TEMPLATE")
+    html = template.html
+    html = html.replace("{{first_name}}", "Test")
+    html = html.replace("{{last_name}}", "Recipient")
+    html = html.replace("{{unsubscribe_url}}", "#")
+    for address in addresses:
+        personalised = html.replace("{{email}}", address)
+        await send_email_via_ses(
+            to_address=address,
+            from_address=campaign.from_email,
+            from_name=campaign.from_name,
+            reply_to=campaign.reply_to,
+            subject=f"[TEST] {campaign.subject}",
+            html_body=personalised,
+            configuration_set=settings.AWS_SES_CONFIG_SET,
+        )

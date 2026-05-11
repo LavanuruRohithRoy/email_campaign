@@ -4,7 +4,7 @@ from datetime import datetime
 import logging
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Query, Response, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.dependencies import get_db, require_role
@@ -201,11 +201,79 @@ async def test_send(
     db: AsyncSession = Depends(get_db),
 ) -> dict[str, list[str] | str]:
     try:
-        campaign = await campaign_service.get_campaign(current_user.org_id, campaign_id, db)
-        if campaign.template_id is None:
-            raise ValueError("NO_TEMPLATE")
+        addresses = [str(address) for address in payload.email_addresses]
+        await campaign_service.send_test_email(campaign_id, current_user.org_id, addresses, db)
     except ValueError as exc:
         raise value_error_to_http_exception(exc) from exc
-    addresses = [str(address) for address in payload.email_addresses]
-    logger.info("TEST SEND to %s for campaign %s", addresses, campaign_id)
     return {"status": "queued", "addresses": addresses}
+
+
+@router.post("/{campaign_id}/send")
+async def send_campaign(
+    campaign_id: UUID,
+    current_user: User = Depends(require_role("super_admin", "campaign_manager")),
+    db: AsyncSession = Depends(get_db),
+) -> dict[str, str | int]:
+    try:
+        queued = await campaign_service.enqueue_campaign(current_user.org_id, campaign_id, db)
+    except ValueError as exc:
+        code = str(exc)
+        if code == "INVALID_STATUS_FOR_SEND":
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail={"detail": "Campaign cannot be sent in current status", "code": code},
+            ) from exc
+        raise value_error_to_http_exception(exc) from exc
+    return {"status": "sending", "queued": queued}
+
+
+@router.post("/{campaign_id}/pause", response_model=CampaignResponse)
+async def pause_campaign(
+    campaign_id: UUID,
+    current_user: User = Depends(require_role("super_admin", "campaign_manager")),
+    db: AsyncSession = Depends(get_db),
+) -> CampaignResponse:
+    try:
+        campaign = await campaign_service.pause_campaign(current_user.org_id, campaign_id, db)
+        recipient_count = await campaign_service.estimate_recipient_count(current_user.org_id, campaign.id, db)
+    except ValueError as exc:
+        code = str(exc)
+        if code == "NOT_SENDING":
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail={"detail": "Campaign is not currently sending", "code": code},
+            ) from exc
+        raise value_error_to_http_exception(exc) from exc
+    return _serialize_campaign(campaign, recipient_count)
+
+
+@router.post("/{campaign_id}/resume", response_model=CampaignResponse)
+async def resume_campaign(
+    campaign_id: UUID,
+    current_user: User = Depends(require_role("super_admin", "campaign_manager")),
+    db: AsyncSession = Depends(get_db),
+) -> CampaignResponse:
+    try:
+        campaign = await campaign_service.resume_campaign(current_user.org_id, campaign_id, db)
+        recipient_count = await campaign_service.estimate_recipient_count(current_user.org_id, campaign.id, db)
+    except ValueError as exc:
+        code = str(exc)
+        if code == "NOT_PAUSED":
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail={"detail": "Campaign is not paused", "code": code},
+            ) from exc
+        raise value_error_to_http_exception(exc) from exc
+    return _serialize_campaign(campaign, recipient_count)
+
+
+@router.get("/{campaign_id}/progress")
+async def get_send_progress(
+    campaign_id: UUID,
+    current_user: User = Depends(require_role("super_admin", "campaign_manager", "viewer")),
+    db: AsyncSession = Depends(get_db),
+) -> dict[str, int | str]:
+    try:
+        return await campaign_service.get_send_progress(current_user.org_id, campaign_id, db)
+    except ValueError as exc:
+        raise value_error_to_http_exception(exc) from exc

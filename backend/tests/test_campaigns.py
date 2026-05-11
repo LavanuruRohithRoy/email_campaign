@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
 from uuid import uuid4
+from unittest.mock import patch
 
 import pytest
 
@@ -352,7 +353,9 @@ async def test_cancel_schedule(async_client, manager_auth_headers, seed_campaign
     assert response.json()["status"] == "draft"
 
 
-async def test_test_send(async_client, manager_auth_headers, seed_campaign: Campaign):
+@patch("app.utils.ses.ses_client.send_email")
+async def test_test_send(mock_send_email, async_client, manager_auth_headers, seed_campaign: Campaign):
+    mock_send_email.return_value = {"MessageId": "fake-id"}
     response = await async_client.post(
         f"/api/v1/campaigns/{seed_campaign.id}/test-send",
         json={"email_addresses": ["one@example.com", "two@example.com", "three@example.com"]},
