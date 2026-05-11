@@ -2,43 +2,103 @@ from __future__ import annotations
 
 import os
 import sys
-from collections.abc import AsyncGenerator
 from pathlib import Path
+from collections.abc import AsyncGenerator
 
 import pytest
-from httpx import ASGITransport, AsyncClient
+from httpx import AsyncClient
+from redis.asyncio import Redis
 
+from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
+from sqlalchemy.pool import NullPool
+from sqlalchemy import delete
+
+from app.models.core import Organisation, User, RefreshToken
+from app.models.enums import UserRole
+from app.utils.security import hash_password
 
 BACKEND_ROOT = Path(__file__).resolve().parents[1]
 if str(BACKEND_ROOT) not in sys.path:
     sys.path.insert(0, str(BACKEND_ROOT))
 
 os.environ.setdefault("APP_ENV", "test")
-os.environ.setdefault("SECRET_KEY", "test-secret-key-minimum-length-123456")
-os.environ.setdefault("JWT_SECRET", "test-jwt-secret-minimum-length-123456")
-os.environ.setdefault(
-    "DATABASE_URL", "postgresql+asyncpg://user:pass@localhost:5432/emailplatform"
-)
-os.environ.setdefault(
-    "DATABASE_URL_SYNC", "postgresql+psycopg2://user:pass@localhost:5432/emailplatform"
-)
-os.environ.setdefault("REDIS_URL", "redis://localhost:6379/0")
-os.environ.setdefault("AWS_ACCESS_KEY_ID", "test")
-os.environ.setdefault("AWS_SECRET_ACCESS_KEY", "test")
-os.environ.setdefault("AWS_REGION", "ap-south-1")
-os.environ.setdefault("AWS_S3_BUCKET", "test-bucket")
-os.environ.setdefault("AWS_SQS_SEND_QUEUE_URL", "https://sqs.ap-south-1.amazonaws.com/123/send")
-os.environ.setdefault(
-    "AWS_SQS_EVENTS_QUEUE_URL", "https://sqs.ap-south-1.amazonaws.com/123/events"
-)
-os.environ.setdefault("AWS_SES_CONFIG_SET", "email-platform-events")
-os.environ.setdefault("ALLOWED_ORIGINS", "http://localhost:5173")
+
+from app.config import settings
+from app.main import app
+from app.dependencies import get_db as dependency_get_db, get_redis as dependency_get_redis
+
+
+# Create a single async engine for tests (StaticPool to avoid connection lifecycle issues)
+engine = create_async_engine(settings.DATABASE_URL, echo=False, poolclass=NullPool)
+
+async_session_maker = async_sessionmaker(engine, expire_on_commit=False, class_=AsyncSession)
 
 
 @pytest.fixture()
-async def async_client() -> AsyncGenerator[AsyncClient, None]:
-    from app.main import app
+async def db_session() -> AsyncGenerator[AsyncSession, None]:
+    async with async_session_maker() as session:
+        yield session
+        await session.rollback()
 
-    transport = ASGITransport(app=app)
-    async with AsyncClient(transport=transport, base_url="http://testserver") as client:
+
+@pytest.fixture()
+async def redis_client() -> AsyncGenerator[Redis, None]:
+    client = Redis.from_url(settings.REDIS_URL, encoding="utf-8", decode_responses=True)
+    await client.flushdb()
+    try:
         yield client
+    finally:
+        await client.close()
+
+
+@pytest.fixture()
+async def seed_user() -> AsyncGenerator[User, None]:
+    async with async_session_maker() as session:
+        # clean tables
+        await session.execute(delete(RefreshToken))
+        await session.execute(delete(User))
+        await session.execute(delete(Organisation))
+        await session.commit()
+
+        org = Organisation(name="Test Org")
+        session.add(org)
+        await session.flush()
+
+        user = User(
+            org_id=org.id,
+            email="test@example.com",
+            password_hash=hash_password("password123"),
+            full_name="Test User",
+            role=UserRole.CAMPAIGN_MANAGER,
+            is_active=True,
+        )
+        session.add(user)
+        await session.commit()
+        await session.refresh(user)
+        yield user
+
+        # cleanup after test
+        await session.execute(delete(RefreshToken))
+        await session.execute(delete(User))
+        await session.execute(delete(Organisation))
+        await session.commit()
+
+
+@pytest.fixture()
+async def async_client(db_session: AsyncSession, redis_client: Redis) -> AsyncGenerator[AsyncClient, None]:
+    # Override app dependencies to use test fixtures
+    async def _override_get_db():
+        async with async_session_maker() as session:
+            yield session
+
+    async def _override_get_redis():
+        yield redis_client
+
+    app.dependency_overrides[dependency_get_db] = _override_get_db
+    app.dependency_overrides[dependency_get_redis] = _override_get_redis
+
+    async with AsyncClient(app=app, base_url="http://testserver") as client:
+        yield client
+
+    app.dependency_overrides.pop(dependency_get_db, None)
+    app.dependency_overrides.pop(dependency_get_redis, None)

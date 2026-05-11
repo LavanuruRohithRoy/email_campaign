@@ -12,31 +12,59 @@ branch_labels: Sequence[str] | None = None
 depends_on: Sequence[str] | None = None
 
 
-user_role = sa.Enum("super_admin", "campaign_manager", "viewer", name="user_role")
-contact_status = sa.Enum(
-    "active", "unsubscribed", "bounced", "complained", name="contact_status"
+user_role = postgresql.ENUM(
+    "SUPER_ADMIN",
+    "CAMPAIGN_MANAGER",
+    "VIEWER",
+    name="user_role",
+    create_type=False,
 )
-contact_source = sa.Enum("import", "manual", "api", "form", name="contact_source")
-campaign_status = sa.Enum(
-    "draft", "scheduled", "sending", "sent", "paused", "cancelled", name="campaign_status"
+contact_status = postgresql.ENUM(
+    "ACTIVE",
+    "UNSUBSCRIBED",
+    "BOUNCED",
+    "COMPLAINED",
+    name="contact_status",
+    create_type=False,
 )
-event_type = sa.Enum(
-    "sent",
-    "delivered",
-    "opened",
-    "clicked",
-    "bounced",
-    "complained",
-    "unsubscribed",
+contact_source = postgresql.ENUM("IMPORT", "MANUAL", "API", "FORM", name="contact_source", create_type=False)
+campaign_status = postgresql.ENUM(
+    "DRAFT",
+    "SCHEDULED",
+    "SENDING",
+    "SENT",
+    "PAUSED",
+    "CANCELLED",
+    name="campaign_status",
+    create_type=False,
+)
+event_type = postgresql.ENUM(
+    "SENT",
+    "DELIVERED",
+    "OPENED",
+    "CLICKED",
+    "BOUNCED",
+    "COMPLAINED",
+    "UNSUBSCRIBED",
     name="event_type",
+    create_type=False,
 )
-token_type = sa.Enum("open", "click", "unsubscribe", name="token_type")
-import_job_status = sa.Enum(
-    "pending", "processing", "completed", "failed", name="import_job_status"
+token_type = postgresql.ENUM("OPEN", "CLICK", "UNSUBSCRIBE", name="token_type", create_type=False)
+import_job_status = postgresql.ENUM(
+    "PENDING",
+    "PROCESSING",
+    "COMPLETED",
+    "FAILED",
+    name="import_job_status",
+    create_type=False,
 )
-send_status = sa.Enum("queued", "sent", "delivered", "failed", name="send_status")
-suppression_reason = sa.Enum(
-    "bounced", "complained", "manual", name="suppression_reason"
+send_status = postgresql.ENUM("QUEUED", "SENT", "DELIVERED", "FAILED", name="send_status", create_type=False)
+suppression_reason = postgresql.ENUM(
+    "BOUNCED",
+    "COMPLAINED",
+    "MANUAL",
+    name="suppression_reason",
+    create_type=False,
 )
 
 
@@ -112,7 +140,7 @@ def upgrade() -> None:
         sa.Column("email", sa.String(length=320), nullable=False),
         sa.Column("first_name", sa.String(length=255), nullable=True),
         sa.Column("last_name", sa.String(length=255), nullable=True),
-        sa.Column("status", contact_status, nullable=False, server_default=sa.text("'active'")),
+        sa.Column("status", contact_status, nullable=False, server_default=sa.text("'ACTIVE'")),
         sa.Column("custom_fields", postgresql.JSONB(astext_type=sa.Text()), nullable=False, server_default=sa.text("'{}'::jsonb")),
         sa.Column("source", contact_source, nullable=False),
         sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
@@ -175,7 +203,7 @@ def upgrade() -> None:
         sa.Column("from_name", sa.String(length=255), nullable=False),
         sa.Column("from_email", sa.String(length=320), nullable=False),
         sa.Column("reply_to", sa.String(length=320), nullable=True),
-        sa.Column("status", campaign_status, nullable=False, server_default=sa.text("'draft'")),
+        sa.Column("status", campaign_status, nullable=False, server_default=sa.text("'DRAFT'")),
         sa.Column("template_id", postgresql.UUID(as_uuid=True), nullable=True),
         sa.Column("scheduled_at", sa.DateTime(timezone=True), nullable=True),
         sa.Column("timezone", sa.String(length=64), nullable=True),
@@ -193,7 +221,7 @@ def upgrade() -> None:
         sa.Column("id", postgresql.UUID(as_uuid=True), server_default=sa.text("gen_random_uuid()"), nullable=False),
         sa.Column("list_id", postgresql.UUID(as_uuid=True), nullable=False),
         sa.Column("created_by", postgresql.UUID(as_uuid=True), nullable=False),
-        sa.Column("status", import_job_status, nullable=False, server_default=sa.text("'pending'")),
+        sa.Column("status", import_job_status, nullable=False, server_default=sa.text("'PENDING'")),
         sa.Column("total_rows", sa.Integer(), nullable=False, server_default=sa.text("0")),
         sa.Column("added", sa.Integer(), nullable=False, server_default=sa.text("0")),
         sa.Column("updated", sa.Integer(), nullable=False, server_default=sa.text("0")),
@@ -223,7 +251,7 @@ def upgrade() -> None:
         sa.Column("campaign_id", postgresql.UUID(as_uuid=True), nullable=False),
         sa.Column("contact_id", postgresql.UUID(as_uuid=True), nullable=False),
         sa.Column("ses_message_id", sa.String(length=255), nullable=True),
-        sa.Column("status", send_status, nullable=False, server_default=sa.text("'queued'")),
+        sa.Column("status", send_status, nullable=False, server_default=sa.text("'QUEUED'")),
         sa.Column("sent_at", sa.DateTime(timezone=True), nullable=True),
         sa.ForeignKeyConstraint(["campaign_id"], ["campaigns.id"]),
         sa.ForeignKeyConstraint(["contact_id"], ["contacts.id"]),
@@ -290,12 +318,12 @@ def downgrade() -> None:
     op.drop_table("users")
     op.drop_table("organisations")
 
-    suppression_reason.drop(op.get_bind(), checkfirst=True)
-    send_status.drop(op.get_bind(), checkfirst=True)
-    import_job_status.drop(op.get_bind(), checkfirst=True)
-    token_type.drop(op.get_bind(), checkfirst=True)
-    event_type.drop(op.get_bind(), checkfirst=True)
-    campaign_status.drop(op.get_bind(), checkfirst=True)
-    contact_source.drop(op.get_bind(), checkfirst=True)
-    contact_status.drop(op.get_bind(), checkfirst=True)
-    user_role.drop(op.get_bind(), checkfirst=True)
+    op.execute("DROP TYPE IF EXISTS suppression_reason")
+    op.execute("DROP TYPE IF EXISTS send_status")
+    op.execute("DROP TYPE IF EXISTS import_job_status")
+    op.execute("DROP TYPE IF EXISTS token_type")
+    op.execute("DROP TYPE IF EXISTS event_type")
+    op.execute("DROP TYPE IF EXISTS campaign_status")
+    op.execute("DROP TYPE IF EXISTS contact_source")
+    op.execute("DROP TYPE IF EXISTS contact_status")
+    op.execute("DROP TYPE IF EXISTS user_role")
