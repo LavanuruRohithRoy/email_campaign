@@ -1,12 +1,9 @@
 from __future__ import annotations
-
 from typing import Any
-
 from pydantic_settings import BaseSettings, EnvSettingsSource, SettingsConfigDict
 
-
 class EmailPlatformSettingsSource(EnvSettingsSource):
-    def prepare_field_value(  # type: ignore[override]
+    def prepare_field_value(
         self,
         field_name: str,
         field: Any,
@@ -14,9 +11,14 @@ class EmailPlatformSettingsSource(EnvSettingsSource):
         value_is_complex: bool,
     ) -> Any:
         if field_name == "ALLOWED_ORIGINS" and isinstance(value, str):
+            if value.startswith("[") and value.endswith("]"):
+                 import json
+                 try:
+                     return json.loads(value)
+                 except:
+                     pass
             return [origin.strip() for origin in value.split(",") if origin.strip()]
         return super().prepare_field_value(field_name, field, value, value_is_complex)
-
 
 class Settings(BaseSettings):
     APP_ENV: str
@@ -39,6 +41,9 @@ class Settings(BaseSettings):
     WORKER_CONCURRENCY: int = 5
     ALLOWED_ORIGINS: list[str]
 
+    # Read from .env file by default. The `.env` value for `ALLOWED_ORIGINS`
+    # should be a JSON array (e.g. ["http://localhost:5173"]) so Pydantic's
+    # dotenv parser can decode it into a list[string].
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
     @classmethod
@@ -56,6 +61,5 @@ class Settings(BaseSettings):
             dotenv_settings,
             file_secret_settings,
         )
-
 
 settings = Settings()

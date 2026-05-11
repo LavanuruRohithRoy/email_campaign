@@ -11,6 +11,9 @@ import { SegmentsPage } from "@/features/segments/segments-page";
 import { PreferencesPage } from "@/features/unsubscribe/preferences-page";
 import { UnsubscribePage } from "@/features/unsubscribe/unsubscribe-page";
 import { PlaceholderPage } from "@/pages/placeholder-page";
+import TemplateGalleryPage from "@/features/templates/pages/TemplateGalleryPage";
+import TemplateEditorPage from "@/features/templates/pages/TemplateEditorPage";
+import CampaignComposerPage from "@/features/campaigns/pages/CampaignComposerPage";
 import { ProtectedRoute } from "@/routes/protected-route";
 
 export default function App() {
@@ -27,9 +30,12 @@ export default function App() {
             <Route path="contacts" element={<ContactsPage />} />
             <Route path="lists" element={<ListsPage />} />
             <Route path="segments" element={<SegmentsPage />} />
-            <Route path="templates" element={<PlaceholderPage title="Templates" />} />
+            <Route path="templates" element={<TemplateGalleryPage />} />
+            <Route path="templates/new" element={<TemplateEditorPage />} />
           </Route>
           <Route path="campaigns" element={<PlaceholderPage title="Campaigns" />} />
+          <Route path="campaigns/new" element={<CampaignComposerPage />} />
+          <Route path="campaigns/:id/edit" element={<CampaignComposerPage />} />
           <Route path="campaigns/:id/report" element={<CampaignReportPage />} />
           <Route path="analytics" element={<AnalyticsPage />} />
           <Route element={<ProtectedRoute roles={["super_admin"]} />}>

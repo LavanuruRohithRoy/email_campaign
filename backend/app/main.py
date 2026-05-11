@@ -17,6 +17,7 @@ from app.routers.lists import router as lists_router
 from app.routers.preferences import router as preferences_router
 from app.routers.segments import router as segments_router
 from app.routers.templates import router as templates_router
+from app.routers.template_builder import router as template_builder_router
 from app.routers.tracking import router as tracking_router
 from app.routers.unsubscribe import router as unsubscribe_router
 from app.routers.webhooks import router as webhooks_router
@@ -53,6 +54,7 @@ app.include_router(contacts_router, prefix="/api/v1/contacts", tags=["contacts"]
 app.include_router(lists_router, prefix="/api/v1/lists", tags=["lists"])
 app.include_router(segments_router, prefix="/api/v1/segments", tags=["segments"])
 app.include_router(templates_router, prefix="/api/v1/templates", tags=["templates"])
+app.include_router(template_builder_router, prefix="/api/v1/templates/builder", tags=["templates","builder"])
 app.include_router(campaigns_router, prefix="/api/v1/campaigns", tags=["campaigns"])
 app.include_router(analytics_router, prefix="/api/v1/analytics", tags=["analytics"])
 app.include_router(webhooks_router)
