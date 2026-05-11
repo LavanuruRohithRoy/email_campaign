@@ -4,7 +4,7 @@ A multi-tenant email campaign platform built with FastAPI, PostgreSQL, Redis, AW
 
 ## Current Stage
 
-This stage now includes M1 Auth, M2 Contacts, and M3 Template Builder backend foundations. Authentication, refresh rotation, logout, RBAC, rate limiting, contact workflows, template library CRUD, duplicate/delete safeguards, asset upload support, and starter template seeding are implemented and covered by tests. The database migration path is stable and applies cleanly from the baseline schema through the template upgrade.
+This stage now includes M1 Auth, M2 Contacts, M3 Template Builder, and M4 Campaign Management backend foundations. Authentication, refresh rotation, logout, RBAC, rate limiting, contact workflows, template library CRUD, campaign CRUD, draft-only lifecycle enforcement, recipient configuration, campaign duplication, scheduling controls, and test-send stubs are implemented and covered by tests. The database migration path is stable and applies cleanly from the baseline schema through the campaign-recipient upgrade.
 
 ## What Is Implemented
 
@@ -47,6 +47,15 @@ This stage now includes M1 Auth, M2 Contacts, and M3 Template Builder backend fo
 - Org-scoped template access for super admins, campaign managers, and viewers
 - Template schema and service layer aligned with the campaign/template model
 
+### M4 Campaign Management
+- Campaign create, list, read, update, delete, and duplicate operations
+- Draft-only protection for campaign updates and deletes
+- Recipient target configuration for lists, segments, and exclusions
+- Recipient resolution with deduplication and suppression filtering
+- Estimated recipient count endpoint for send confirmation
+- Campaign scheduling and cancellation flow
+- Test-send request validation and logging stub
+
 ### Database and Migration Stability
 - Alembic migration path stabilized
 - Initial schema migration made safe for enum creation
@@ -68,7 +77,8 @@ This stage now includes M1 Auth, M2 Contacts, and M3 Template Builder backend fo
   - logout invalidation
 - Contact test coverage for lists, contacts, suppression, CSV preview, import job creation, segments, and RBAC
 - Template test coverage for CRUD, duplication, delete-in-use, viewer read access, seed, and upload validation
-- Full backend suite currently passes with 35 tests green
+- Campaign test coverage for CRUD, duplicate, recipient configuration, recipient count, scheduling, cancel schedule, test-send validation, and viewer RBAC
+- Full backend suite currently passes with 51 tests green
 
 ## Project Structure
 

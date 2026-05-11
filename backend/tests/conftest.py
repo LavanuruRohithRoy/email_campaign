@@ -13,6 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sess
 from sqlalchemy.pool import NullPool
 from sqlalchemy import delete
 
+from app.models.campaign_recipients import CampaignRecipient
 from app.models.campaigns import Campaign, CampaignSend, Template
 from app.models.contacts import Contact, ContactList, ContactListMember, ImportJob, Segment, SuppressionList
 from app.models.core import Organisation, User, RefreshToken
@@ -61,6 +62,7 @@ async def seed_user() -> AsyncGenerator[User, None]:
         await session.execute(delete(EmailEvent))
         await session.execute(delete(TrackingToken))
         await session.execute(delete(CampaignSend))
+        await session.execute(delete(CampaignRecipient))
         await session.execute(delete(Campaign))
         await session.execute(delete(Template))
         await session.execute(delete(ImportJob))
@@ -95,6 +97,7 @@ async def seed_user() -> AsyncGenerator[User, None]:
         await session.execute(delete(EmailEvent))
         await session.execute(delete(TrackingToken))
         await session.execute(delete(CampaignSend))
+        await session.execute(delete(CampaignRecipient))
         await session.execute(delete(Campaign))
         await session.execute(delete(Template))
         await session.execute(delete(ImportJob))

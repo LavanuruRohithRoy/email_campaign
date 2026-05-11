@@ -108,3 +108,20 @@ async def count_segment(org_id: UUID, segment_id: UUID, db: AsyncSession, redis:
     count = int((await db.execute(query)).scalar_one())
     await redis.set(cache_key, str(count), ex=300)
     return count
+
+
+async def evaluate_segment_contacts(org_id: UUID, segment_id: UUID, db: AsyncSession) -> list[UUID]:
+    segment = await _get_segment(org_id, segment_id, db)
+    rules = segment.rules or {}
+    operator = str(rules.get("operator", "AND")).upper()
+    conditions_data = rules.get("conditions", [])
+    conditions = [_segment_condition(SegmentRuleCondition.model_validate(condition)) for condition in conditions_data]
+
+    query = select(Contact.id).where(Contact.org_id == org_id)
+    if conditions:
+        if operator == "OR":
+            query = query.where(or_(*conditions))
+        else:
+            query = query.where(and_(*conditions))
+    result = await db.execute(query)
+    return list(result.scalars().all())

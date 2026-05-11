@@ -35,6 +35,26 @@ def value_error_to_http_exception(exc: ValueError) -> HTTPException:
             status_code=status.HTTP_409_CONFLICT,
             detail={"detail": "Template is in use", "code": "TEMPLATE_IN_USE"},
         )
+    if code == "NOT_DRAFT":
+        return HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail={"detail": "Only draft campaigns can be modified", "code": "NOT_DRAFT"},
+        )
+    if code == "NOT_SCHEDULED":
+        return HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail={"detail": "Only scheduled campaigns can be cancelled", "code": "NOT_SCHEDULED"},
+        )
+    if code == "NO_TEMPLATE":
+        return HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail={"detail": "Attach a template before scheduling", "code": "NO_TEMPLATE"},
+        )
+    if code == "NO_RECIPIENTS":
+        return HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail={"detail": "Add at least one recipient list or segment", "code": "NO_RECIPIENTS"},
+        )
     return HTTPException(
         status_code=status.HTTP_400_BAD_REQUEST,
         detail={"detail": code, "code": code},
