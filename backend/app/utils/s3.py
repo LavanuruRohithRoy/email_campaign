@@ -42,3 +42,20 @@ async def upload_thumbnail_to_s3(file_bytes: bytes, template_id: str) -> str:
         ACL="public-read",
     )
     return f"https://{settings.AWS_S3_BUCKET}.s3.{settings.AWS_REGION}.amazonaws.com/{key}"
+
+
+async def upload_report_csv_to_s3(file_bytes: bytes, filename: str) -> str:
+    key = f"reports/{uuid.uuid4()}-{filename}"
+    await asyncio.to_thread(
+        s3_client.put_object,
+        Bucket=settings.AWS_S3_BUCKET,
+        Key=key,
+        Body=file_bytes,
+        ContentType="text/csv",
+    )
+    return await asyncio.to_thread(
+        s3_client.generate_presigned_url,
+        "get_object",
+        Params={"Bucket": settings.AWS_S3_BUCKET, "Key": key},
+        ExpiresIn=3600,
+    )

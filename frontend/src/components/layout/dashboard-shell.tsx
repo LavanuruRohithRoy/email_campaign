@@ -23,7 +23,7 @@ import { useUiStore } from "@/stores/ui-store";
 import type { UserRole } from "@/types/api";
 
 const navItems: Array<{ href: string; label: string; icon: typeof LayoutDashboard; roles: UserRole[] }> = [
-  { href: "/", label: "Dashboard", icon: LayoutDashboard, roles: ["super_admin", "campaign_manager"] },
+  { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard, roles: ["super_admin", "campaign_manager"] },
   { href: "/contacts", label: "Contacts", icon: ContactRound, roles: ["super_admin", "campaign_manager"] },
   { href: "/lists", label: "Lists", icon: List, roles: ["super_admin", "campaign_manager"] },
   { href: "/segments", label: "Segments", icon: Tags, roles: ["super_admin", "campaign_manager"] },

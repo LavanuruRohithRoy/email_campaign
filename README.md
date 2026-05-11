@@ -1,10 +1,10 @@
 # Email Campaign Platform
 
-A multi-tenant email campaign platform built with FastAPI, PostgreSQL, Redis, AWS SES/S3/SQS, and React + Vite. The application is structured for org-scoped team workflows, secure authentication, campaign sending, subscriber-safe tracking, unsubscribe compliance, and a production-ready frontend foundation.
+A multi-tenant email campaign platform built with FastAPI, PostgreSQL, Redis, AWS SES/SNS/SQS/S3, and React + Vite. The application is structured for org-scoped team workflows, secure authentication, campaign sending, subscriber-safe tracking, unsubscribe compliance, analytics reporting, and deployment-ready frontend/backend boundaries.
 
 ## Current Stage
 
-The project is complete through M8.
+The project is complete through M9.
 
 Implemented modules:
 - M1 Auth, JWT refresh rotation, logout, RBAC, and Redis-backed login rate limiting
@@ -15,8 +15,7 @@ Implemented modules:
 - M6 Open/click tracking with public tracking endpoints
 - M7 Bounce/complaint handling with suppression-list updates and worker safeguards
 - M8 Unsubscribe management, preference center APIs, send-safety validation, and frontend foundation
-
-The backend test suite currently passes with 86 tests green. The frontend lint and production build also pass.
+- M9 Analytics, reporting APIs, CSV export, dashboard visualization, campaign reports, and live send monitoring UI
 
 ## Backend Features
 
@@ -52,7 +51,7 @@ The backend test suite currently passes with 86 tests green. The frontend lint a
 - SQS enqueue flow and async send worker
 - SES-backed test send and campaign delivery path
 
-### Tracking and Events
+### Tracking, Bounce, and Unsubscribe
 - Public `/track/open` endpoint returning a transparent pixel
 - Public `/track/click` endpoint redirecting through tracked URLs
 - Opaque tracking tokens for open, click, and unsubscribe links
@@ -60,21 +59,26 @@ The backend test suite currently passes with 86 tests green. The frontend lint a
 - Click-event recording on every click
 - Bounce and complaint handling from webhook/SNS/SQS flow
 - Automatic suppression-list entries for permanent bounce and complaint handling
-
-### M8 Unsubscribe Management
 - Public `/unsubscribe?t={token}` endpoint with no JWT requirement
 - Public `/preferences?t={token}` GET and POST endpoints with no JWT requirement
-- One-click unsubscribe from existing outbound unsubscribe tokens
-- Contact-level unsubscribe state management
-- Idempotent repeated unsubscribe clicks
-- Single unsubscribe event recording with `source=unsubscribe_link`
+- Idempotent one-click unsubscribe with a single unsubscribe event
 - Preference center reactivation only for `unsubscribed -> active`
-- Bounced and complained contacts cannot be reactivated through preferences
 - Future campaign recipient resolution excludes unsubscribed, bounced, complained, and suppressed contacts
+
+### Analytics and Reports
+- Protected `/api/v1/analytics/dashboard` dashboard metrics
+- Protected `/api/v1/analytics/campaigns/{campaign_id}` campaign analytics
+- Protected `/api/v1/analytics/campaigns/top` top campaign performance
+- Protected `/api/v1/analytics/timeseries/opens` and `/clicks` time-series endpoints
+- Protected `/api/v1/analytics/campaigns/{campaign_id}/export` CSV export endpoint
+- Aggregated sent, delivered, open, click, bounce, complaint, and unsubscribe metrics
+- Safe rate calculations with zero-division protection
+- Redis caching for dashboard and campaign analytics with 300-second TTL
+- S3-backed signed download URL generation for campaign report CSV files
 
 ## Frontend Features
 
-The production frontend has started in `frontend/` with:
+The production frontend lives in `frontend/` with:
 - React 18, TypeScript, Vite, TailwindCSS, and shadcn-style UI primitives
 - React Router DOM for routing
 - TanStack Query for server state
@@ -82,15 +86,37 @@ The production frontend has started in `frontend/` with:
 - Axios API client with JWT attachment and refresh-token retry flow
 - React Hook Form and Zod for form validation
 - sonner toasts and lucide-react icons
+- Recharts and date-fns for analytics visualization
 - Auth login page and protected route shell
 - Responsive dashboard shell with sidebar, top nav, mobile sheet, user menu, and role-aware navigation
 - Contacts, lists, and segments foundation pages wired to real backend APIs
 - Public unsubscribe and preference center pages wired to real M8 APIs
+- Analytics dashboard with KPI widgets, open/click charts, and top campaigns
+- Campaign report page with delivery, engagement, bounce, complaint, unsubscribe, CSV export, and live progress polling
+
+Frontend routes:
+- `/dashboard`
+- `/contacts`
+- `/lists`
+- `/segments`
+- `/campaigns`
+- `/campaigns/:id/report`
+- `/analytics`
+- `/templates`
+- `/settings`
+- `/unsubscribe`
+- `/preferences`
 
 Frontend environment example:
 
 ```env
 VITE_API_BASE_URL=http://localhost:8000
+```
+
+Production frontend environment:
+
+```env
+VITE_API_BASE_URL=https://your-api-domain.com
 ```
 
 ## Project Structure
@@ -122,9 +148,16 @@ frontend/
       forms/
       tables/
     features/
+      analytics/
+        api/
+        components/
+        hooks/
+        pages/
+        types/
       auth/
-      dashboard/
+      campaigns/
       contacts/
+      dashboard/
       lists/
       segments/
       unsubscribe/
@@ -145,7 +178,7 @@ Backend:
 - Alembic
 - PostgreSQL
 - Redis
-- AWS SES, S3, SQS
+- AWS SES, SNS, SQS, S3
 - python-jose
 - bcrypt
 - pytest and pytest-asyncio
@@ -165,6 +198,8 @@ Frontend:
 - Zod
 - sonner
 - lucide-react
+- Recharts
+- date-fns
 
 ## Running Locally
 
@@ -173,6 +208,13 @@ Backend:
 ```bash
 cd backend
 python -m pytest tests -v
+```
+
+M9 validation target:
+
+```bash
+cd backend
+pytest tests/test_analytics.py -v
 ```
 
 Frontend:
@@ -191,17 +233,44 @@ npm run lint
 npm run build
 ```
 
+## Deployment Preparation
+
+Preferred production targets:
+- Backend Web Service: Render
+- Backend workers: separate Render background workers for send/scheduler/event processing
+- Frontend: Vercel
+- Database: Neon PostgreSQL
+- Redis: Upstash Redis
+- AWS: SES, SNS, SQS, and S3 remain external services
+
+Backend production environment must include:
+- `APP_ENV=production`
+- `APP_BASE_URL=https://your-api-domain.com`
+- `SECRET_KEY`
+- `JWT_SECRET`
+- `DATABASE_URL`
+- `DATABASE_URL_SYNC`
+- `REDIS_URL`
+- `AWS_ACCESS_KEY_ID`
+- `AWS_SECRET_ACCESS_KEY`
+- `AWS_REGION`
+- `AWS_S3_BUCKET`
+- `AWS_SQS_SEND_QUEUE_URL`
+- `AWS_SQS_EVENTS_QUEUE_URL`
+- `AWS_SES_CONFIG_SET`
+- `ALLOWED_ORIGINS=https://your-frontend-domain.com`
+
+Frontend production environment must include:
+- `VITE_API_BASE_URL=https://your-api-domain.com`
+
+Healthcheck routes are available through module health endpoints, including `/api/v1/auth/health`, `/api/v1/analytics/health`, `/track/health`, `/unsubscribe/health`, and `/preferences/health`.
+
 ## Validation Snapshot
 
-Latest local checks:
+Latest requested M9 validation:
 
 ```bash
 cd backend
-$env:PYTHONPATH='.'; ..\.venv\Scripts\pytest.exe tests -v
-# 86 passed
-
-cd frontend
-npm run lint
-npm run build
-# both passed
+$env:PYTHONPATH='.'; ..\.venv\Scripts\pytest.exe tests/test_analytics.py -v
+# 10 passed
 ```
