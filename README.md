@@ -4,7 +4,7 @@ A multi-tenant email campaign platform built with FastAPI, PostgreSQL, Redis, AW
 
 ## Current Stage
 
-This stage now includes M1 Auth plus M2 Contacts. Authentication, refresh rotation, logout, RBAC, rate limiting, and the initial contact-management workflows are implemented and covered by tests. The database migration path is stable and applies cleanly from the baseline schema through the contacts upgrade.
+This stage now includes M1 Auth, M2 Contacts, and M3 Template Builder backend foundations. Authentication, refresh rotation, logout, RBAC, rate limiting, contact workflows, template library CRUD, duplicate/delete safeguards, asset upload support, and starter template seeding are implemented and covered by tests. The database migration path is stable and applies cleanly from the baseline schema through the template upgrade.
 
 ## What Is Implemented
 
@@ -39,6 +39,14 @@ This stage now includes M1 Auth plus M2 Contacts. Authentication, refresh rotati
 - Suppression-list checks on contact creation and import paths
 - Org-scoped filtering across lists, contacts, segments, and imports
 
+### M3 Template Builder
+- Template create, list, update, delete, and duplicate operations
+- Template delete protection when a campaign references the template
+- Starter template seeding for new organizations
+- Image asset upload helper backed by S3
+- Org-scoped template access for super admins, campaign managers, and viewers
+- Template schema and service layer aligned with the campaign/template model
+
 ### Database and Migration Stability
 - Alembic migration path stabilized
 - Initial schema migration made safe for enum creation
@@ -59,7 +67,8 @@ This stage now includes M1 Auth plus M2 Contacts. Authentication, refresh rotati
   - role guard denial
   - logout invalidation
 - Contact test coverage for lists, contacts, suppression, CSV preview, import job creation, segments, and RBAC
-- Full backend suite currently passes with 24 tests green
+- Template test coverage for CRUD, duplication, delete-in-use, viewer read access, seed, and upload validation
+- Full backend suite currently passes with 35 tests green
 
 ## Project Structure
 

@@ -30,6 +30,11 @@ def value_error_to_http_exception(exc: ValueError) -> HTTPException:
             status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
             detail={"detail": "File too large", "code": "FILE_TOO_LARGE"},
         )
+    if code == "TEMPLATE_IN_USE":
+        return HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail={"detail": "Template is in use", "code": "TEMPLATE_IN_USE"},
+        )
     return HTTPException(
         status_code=status.HTTP_400_BAD_REQUEST,
         detail={"detail": code, "code": code},
