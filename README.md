@@ -4,7 +4,7 @@ A multi-tenant email campaign platform built with FastAPI, PostgreSQL, Redis, AW
 
 ## Current Stage
 
-This stage now includes M1 Auth, M2 Contacts, M3 Template Builder, and M4 Campaign Management backend foundations. Authentication, refresh rotation, logout, RBAC, rate limiting, contact workflows, template library CRUD, campaign CRUD, draft-only lifecycle enforcement, recipient configuration, campaign duplication, scheduling controls, and test-send stubs are implemented and covered by tests. The database migration path is stable and applies cleanly from the baseline schema through the campaign-recipient upgrade.
+This stage now includes M1 Auth, M2 Contacts, M3 Template Builder, M4 Campaign Management, M5 Scheduling and Sending, and M6 Open/Click Tracking. Authentication, refresh rotation, logout, RBAC, rate limiting, contact workflows, template CRUD, campaign lifecycle management, SQS enqueue/send worker flows, scheduler-triggered sends, SES-backed test send, tracking token injection, and public tracking endpoints are implemented and covered by tests.
 
 ## What Is Implemented
 
@@ -54,7 +54,24 @@ This stage now includes M1 Auth, M2 Contacts, M3 Template Builder, and M4 Campai
 - Recipient resolution with deduplication and suppression filtering
 - Estimated recipient count endpoint for send confirmation
 - Campaign scheduling and cancellation flow
-- Test-send request validation and logging stub
+- Test-send request validation and SES-backed delivery
+
+### M5 Scheduling and Sending
+- Immediate campaign send endpoint that enqueues recipients into SQS
+- Pause and resume controls for in-flight sends
+- Send progress endpoint with sent/total status
+- Async send worker for SQS polling, personalization, tracking-token injection, and SES delivery
+- Scheduler loop that triggers due scheduled campaigns
+- Worker send-rate throttling and concurrency controls via settings
+
+### M6 Open and Click Tracking
+- Public tracking endpoints at `/track/open` and `/track/click` (no JWT)
+- 1x1 transparent pixel response for open tracking (always 200)
+- Click redirect response for click tracking (always 302)
+- Token resolution through `tracking_tokens` table
+- Duplicate guard for open events (one opened event per contact/campaign token context)
+- Click event capture on every click with URL metadata
+- Device context capture on events (`ip_address`, `user_agent`)
 
 ### Database and Migration Stability
 - Alembic migration path stabilized
@@ -78,7 +95,9 @@ This stage now includes M1 Auth, M2 Contacts, M3 Template Builder, and M4 Campai
 - Contact test coverage for lists, contacts, suppression, CSV preview, import job creation, segments, and RBAC
 - Template test coverage for CRUD, duplication, delete-in-use, viewer read access, seed, and upload validation
 - Campaign test coverage for CRUD, duplicate, recipient configuration, recipient count, scheduling, cancel schedule, test-send validation, and viewer RBAC
-- Full backend suite currently passes with 51 tests green
+- Sending test coverage for enqueue, pause/resume, progress, worker processing, and scheduler triggering
+- Tracking test coverage for open pixel, open dedup, click redirect, click metadata, and invalid-token handling
+- Full backend suite currently passes with 69 tests green
 
 ## Project Structure
 

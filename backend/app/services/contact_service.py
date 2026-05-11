@@ -14,7 +14,7 @@ from app.models.contacts import Contact, ContactList, ContactListMember, Segment
 from app.models.core import RefreshToken
 from app.models.tracking import EmailEvent
 from app.schemas.contact import ContactCreate, ContactListCreate, ContactListUpdate, ContactUpdate, SegmentCreate, SegmentUpdate
-from app.models.enums import ContactStatus, ContactSource
+from app.models.enums import ContactStatus, ContactSource, SuppressionReason
 
 
 async def get_lists(org_id: UUID, db: AsyncSession) -> list[dict[str, object]]:
@@ -205,6 +205,26 @@ async def create_contact(org_id: UUID, data: ContactCreate, db: AsyncSession) ->
         source=data.source if data.source is not None else ContactSource.MANUAL,
     )
     db.add(contact)
+    if contact.status in {ContactStatus.BOUNCED, ContactStatus.COMPLAINED}:
+        existing = await db.scalar(
+            select(SuppressionList.id).where(
+                SuppressionList.org_id == org_id,
+                SuppressionList.email == contact.email,
+            )
+        )
+        if not existing:
+            suppression_reason = (
+                SuppressionReason.BOUNCED
+                if contact.status == ContactStatus.BOUNCED
+                else SuppressionReason.COMPLAINED
+            )
+            db.add(
+                SuppressionList(
+                    org_id=org_id,
+                    email=contact.email,
+                    reason=suppression_reason,
+                )
+            )
     await db.commit()
     await db.refresh(contact)
     return contact

@@ -11,7 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.config import settings
 from app.database import SessionLocal
 from app.models.campaigns import Campaign, CampaignSend, Template
-from app.models.contacts import Contact
+from app.models.contacts import Contact, SuppressionList
 from app.models.enums import CampaignStatus, ContactStatus, EventType, SendStatus
 from app.models.tracking import EmailEvent
 from app.utils.ses import delete_sqs_message, receive_sqs_messages, send_email_via_ses
@@ -49,7 +49,17 @@ async def _process_send_message(message: dict[str, object], db: AsyncSession) ->
         return False
 
     contact = await db.get(Contact, contact_id)
-    if not contact or contact.status in (
+    is_suppressed = False
+    if contact:
+        suppressed = await db.scalar(
+            select(SuppressionList.id).where(
+                SuppressionList.org_id == contact.org_id,
+                SuppressionList.email == contact.email,
+            )
+        )
+        is_suppressed = suppressed is not None
+
+    if not contact or is_suppressed or contact.status in (
         ContactStatus.UNSUBSCRIBED,
         ContactStatus.BOUNCED,
         ContactStatus.COMPLAINED,
