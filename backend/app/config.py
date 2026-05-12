@@ -1,9 +1,12 @@
 from __future__ import annotations
+import logging
 import sys
 import json
 from typing import Any
 from pydantic import field_validator, ValidationError
 from pydantic_settings import BaseSettings, EnvSettingsSource, SettingsConfigDict
+
+logger = logging.getLogger(__name__)
 
 class EmailPlatformSettingsSource(EnvSettingsSource):
     def prepare_field_value(
@@ -252,13 +255,8 @@ class Settings(BaseSettings):
 try:
     settings = Settings()  # type: ignore[call-arg]
 except ValidationError as e:
-    print("\n" + "="*80)
-    print("CONFIGURATION ERROR - Application cannot start")
-    print("="*80)
+    logger.critical("Configuration validation failed; application startup aborted")
     for error in e.errors():
-        print(f"\n❌ {error['loc'][0]}: {error['msg']}")
-    print("\n" + "="*80)
-    print("Please fix the above configuration errors and restart the application.")
-    print("="*80 + "\n")
+        field = str(error["loc"][0]) if error.get("loc") else "unknown"
+        logger.critical("config_error field=%s message=%s", field, error["msg"])
     sys.exit(1)
-

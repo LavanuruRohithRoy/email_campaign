@@ -3,7 +3,11 @@ import axios, { type AxiosError, type AxiosResponse } from "axios";
 import { useAuthStore } from "@/stores/auth-store";
 import type { AuthTokens } from "@/types/api";
 
-const baseURL = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8000";
+const baseURL = import.meta.env.VITE_API_BASE_URL;
+
+if (!baseURL) {
+  throw new Error("Missing VITE_API_BASE_URL environment variable");
+}
 
 export const api = axios.create({
   baseURL,
