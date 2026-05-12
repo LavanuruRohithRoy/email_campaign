@@ -1,10 +1,8 @@
 from __future__ import annotations
 
-import secrets
 from uuid import uuid4
 
 import pytest
-from sqlalchemy import select
 
 from app.models.campaigns import Template
 from app.models.core import Organisation, User
@@ -75,8 +73,6 @@ async def test_send_test_email(monkeypatch, db_session, m10_seed):
         id = m10_seed["user"].id
         email = "no-reply@example.com"
         full_name = "No Reply"
-
-    sent = {}
 
     async def fake_send_email_via_ses(*args, **kwargs):
         return "message-123"

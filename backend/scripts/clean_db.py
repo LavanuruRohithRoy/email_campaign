@@ -1,3 +1,7 @@
+"""Utility script to reset the local database schema."""
+
+# ruff: noqa: E402
+
 import sys
 from pathlib import Path
 import logging

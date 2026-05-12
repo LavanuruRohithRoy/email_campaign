@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from alembic import op
-import sqlalchemy as sa
 from collections.abc import Sequence
 
 revision: str = "m5_add_indexes"

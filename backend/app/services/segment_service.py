@@ -1,15 +1,13 @@
 from __future__ import annotations
 
-from collections.abc import Sequence
-from typing import Literal
 from uuid import UUID
 
 from redis.asyncio import Redis
-from sqlalchemy import and_, delete, func, or_, select
+from sqlalchemy import and_, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.contacts import Contact, Segment
-from app.schemas.contact import SegmentCreate, SegmentRuleCondition, SegmentRules, SegmentUpdate
+from app.schemas.contact import SegmentCreate, SegmentRuleCondition, SegmentUpdate
 
 
 async def get_segments(org_id: UUID, db: AsyncSession) -> list[Segment]:

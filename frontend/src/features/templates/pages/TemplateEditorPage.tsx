@@ -1,5 +1,7 @@
 import { useMemo, useState } from "react";
+import type { RefObject } from "react";
 import EmailEditor from "react-email-editor";
+import type { EditorRef } from "react-email-editor";
 import { toast } from "sonner";
 
 import { previewTemplate, sendTemplateTestEmail } from "@/features/templates/api/template-builder";
@@ -125,7 +127,7 @@ export default function TemplateEditorPage() {
           </div>
 
           <div style={{ height: 700 }}>
-            <EmailEditor ref={editorRef} />
+            <EmailEditor ref={editorRef as unknown as RefObject<EditorRef<"email">>} />
           </div>
         </div>
 

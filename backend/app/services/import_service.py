@@ -9,7 +9,7 @@ from typing import Any
 from uuid import UUID
 
 from pydantic import EmailStr, TypeAdapter
-from sqlalchemy import delete, select
+from sqlalchemy import select
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 

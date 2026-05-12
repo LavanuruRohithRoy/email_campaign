@@ -43,14 +43,18 @@ jobs:
       - name: Export test env
         run: |
           echo "APP_ENV=test" >> $GITHUB_ENV
+          echo "SECRET_KEY=test-secret-key-for-ci-only" >> $GITHUB_ENV
+          echo "JWT_SECRET=test-jwt-secret-key-for-ci-only" >> $GITHUB_ENV
           echo "DATABASE_URL=postgresql+asyncpg://postgres:postgres@127.0.0.1:5432/postgres" >> $GITHUB_ENV
           echo "DATABASE_URL_SYNC=postgresql://postgres:postgres@127.0.0.1:5432/postgres" >> $GITHUB_ENV
           echo "REDIS_URL=redis://127.0.0.1:6379/0" >> $GITHUB_ENV
           echo "AWS_ACCESS_KEY_ID=TEST" >> $GITHUB_ENV
           echo "AWS_SECRET_ACCESS_KEY=TEST" >> $GITHUB_ENV
           echo "AWS_REGION=us-east-1" >> $GITHUB_ENV
+          echo "AWS_S3_BUCKET=test-bucket" >> $GITHUB_ENV
           echo "AWS_SQS_SEND_QUEUE_URL=http://localhost/queue/send" >> $GITHUB_ENV
           echo "AWS_SQS_EVENTS_QUEUE_URL=http://localhost/queue/events" >> $GITHUB_ENV
+          echo "AWS_SES_CONFIG_SET=test-config-set" >> $GITHUB_ENV
           echo "ALLOWED_ORIGINS=http://localhost:5173" >> $GITHUB_ENV
           echo "APP_BASE_URL=http://localhost:8000" >> $GITHUB_ENV
           echo "VITE_API_BASE_URL=http://localhost:8000" >> $GITHUB_ENV

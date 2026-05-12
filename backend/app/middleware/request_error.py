@@ -10,7 +10,6 @@ Provides:
 """
 
 import contextvars
-import json
 import logging
 import time
 import uuid
@@ -20,7 +19,6 @@ from fastapi import Request, Response
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from starlette.middleware.base import BaseHTTPMiddleware
-from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
 from app.config import settings
 
@@ -167,7 +165,7 @@ class GlobalExceptionMiddleware(BaseHTTPMiddleware):
                 headers={"X-Request-ID": request_id},
             )
 
-        except TimeoutError as exc:
+        except TimeoutError:
             """Handle timeout errors with 504 Gateway Timeout."""
             request_id = request_id_ctx.get() or str(uuid.uuid4())
             logger.error(

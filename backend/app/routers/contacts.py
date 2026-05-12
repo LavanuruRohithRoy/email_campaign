@@ -11,7 +11,6 @@ from app.models.campaigns import Campaign
 from app.models.contacts import ContactList, ContactListMember
 from app.models.core import User
 from app.models.enums import ContactStatus
-from app.models.tracking import EmailEvent
 from app.routers.common import value_error_to_http_exception
 from app.schemas.contact import (
     ContactCreate,

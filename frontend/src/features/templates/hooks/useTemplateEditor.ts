@@ -21,7 +21,7 @@ export function useTemplateEditor() {
           reject(new Error("Editor not ready"));
           return;
         }
-        editorRef.current.editor.exportHtml((data) => resolve(data));
+        editorRef.current.editor.exportHtml((data: EditorExportData) => resolve(data));
       } catch (error) {
         reject(error);
       }

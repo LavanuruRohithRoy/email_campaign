@@ -4,7 +4,6 @@ import logging
 from fastapi import APIRouter
 from sqlalchemy import text
 
-from app.config import settings
 from app.database import engine
 from app.dependencies import get_redis
 

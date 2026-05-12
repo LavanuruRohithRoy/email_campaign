@@ -1,5 +1,6 @@
 from __future__ import annotations
 import sys
+import json
 from typing import Any
 from pydantic import field_validator, ValidationError
 from pydantic_settings import BaseSettings, EnvSettingsSource, SettingsConfigDict
@@ -14,11 +15,10 @@ class EmailPlatformSettingsSource(EnvSettingsSource):
     ) -> Any:
         if field_name == "ALLOWED_ORIGINS" and isinstance(value, str):
             if value.startswith("[") and value.endswith("]"):
-                 import json
-                 try:
-                     return json.loads(value)
-                 except:
-                     pass
+                try:
+                    return json.loads(value)
+                except json.JSONDecodeError:
+                    pass
             return [origin.strip() for origin in value.split(",") if origin.strip()]
         return super().prepare_field_value(field_name, field, value, value_is_complex)
 

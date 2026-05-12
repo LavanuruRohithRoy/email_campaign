@@ -6,7 +6,7 @@ from fastapi import APIRouter, Depends, Query, Response, status
 from redis.asyncio import Redis
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.dependencies import get_current_user, get_db, get_redis, require_role
+from app.dependencies import get_db, get_redis, require_role
 from app.models.core import User
 from app.routers.common import value_error_to_http_exception
 from app.schemas.contact import SegmentCollectionResponse, SegmentCountResponse, SegmentCreate, SegmentResponse, SegmentUpdate

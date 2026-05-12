@@ -5,7 +5,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from typing import List
 
 from app.dependencies import get_db, require_role, get_redis
-from app.models.campaigns import Template
 from app.schemas.template_builder import (
     TemplateBuilderSaveRequest,
     TemplatePreviewRequest,

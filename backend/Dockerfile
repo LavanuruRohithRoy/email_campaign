@@ -1,11 +1,17 @@
 FROM python:3.11-slim
 
-WORKDIR /app
+# Use /app/backend as the application root so the repo build context (.) can be used
+WORKDIR /app/backend
 
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+# Copy only the requirements first for better layer caching
+COPY backend/requirements.txt /app/backend/requirements.txt
+RUN pip install --no-cache-dir -r /app/backend/requirements.txt
 
-COPY . .
+# Copy the backend source into the image
+COPY backend/ /app/backend/
+
+# Ensure Python can import the `app` package
+ENV PYTHONPATH=/app/backend
 
 EXPOSE 8000
 

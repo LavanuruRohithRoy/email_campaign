@@ -1,19 +1,15 @@
 from __future__ import annotations
 
-from collections.abc import Sequence
-from datetime import datetime, timezone
 from typing import Literal
 from uuid import UUID
 
-from sqlalchemy import and_, delete, func, or_, select
+from sqlalchemy import delete, func, or_, select
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models.campaigns import Campaign
-from app.models.contacts import Contact, ContactList, ContactListMember, Segment, SuppressionList
-from app.models.core import RefreshToken
+from app.models.contacts import Contact, ContactList, ContactListMember, SuppressionList
 from app.models.tracking import EmailEvent
-from app.schemas.contact import ContactCreate, ContactListCreate, ContactListUpdate, ContactUpdate, SegmentCreate, SegmentUpdate
+from app.schemas.contact import ContactCreate, ContactListCreate, ContactListUpdate, ContactUpdate
 from app.models.enums import ContactStatus, ContactSource, SuppressionReason
 
 

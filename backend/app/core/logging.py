@@ -13,7 +13,6 @@ import json
 import logging
 import logging.config
 import re
-import sys
 import uuid
 from typing import Any
 

@@ -3,11 +3,9 @@ from __future__ import annotations
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, File, Query, Response, UploadFile, status
-from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.dependencies import get_db, require_role
-from app.models.campaigns import Template
 from app.models.core import User
 from app.routers.common import value_error_to_http_exception
 from app.schemas.template import (

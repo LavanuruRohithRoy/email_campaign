@@ -5,7 +5,9 @@ from contextlib import asynccontextmanager
 from collections.abc import AsyncGenerator
 
 from fastapi import FastAPI
+from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from redis.asyncio import Redis
 
 from app.config import settings
@@ -14,6 +16,7 @@ from app.middleware.request_error import (
     RequestIDMiddleware,
     RequestLoggingMiddleware,
     GlobalExceptionMiddleware,
+    request_id_ctx,
 )
 from app.middleware.security import (
     SecurityHeadersMiddleware,
@@ -54,11 +57,6 @@ async def lifespan(_: FastAPI) -> AsyncGenerator[None, None]:
 
 
 app = FastAPI(title="Email Campaign Platform", version="1.0.0", lifespan=lifespan)
-
-# Standardize Pydantic/Request validation errors to use our error shape
-from fastapi.exceptions import RequestValidationError
-from fastapi.responses import JSONResponse
-from app.middleware.request_error import request_id_middleware, request_id_ctx
 
 
 async def _validation_exception_handler(request, exc: RequestValidationError):

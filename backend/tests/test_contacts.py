@@ -1,17 +1,16 @@
 from __future__ import annotations
 
 import json
-from datetime import datetime, timezone
 from uuid import uuid4
 
 import pytest
-from sqlalchemy import delete, select
+from sqlalchemy import select
 
 from app.models.campaigns import Campaign
-from app.models.contacts import Contact, ContactList, ContactListMember, ImportJob, Segment, SuppressionList
+from app.models.contacts import Contact, ContactList, ContactListMember, Segment, SuppressionList
 from app.models.core import Organisation, User
 from app.models.enums import ContactSource, EventType, SuppressionReason, UserRole
-from app.models.tracking import EmailEvent, TrackingToken
+from app.models.tracking import EmailEvent
 from app.utils.security import hash_password
 
 
