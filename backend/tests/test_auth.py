@@ -1,5 +1,10 @@
 from __future__ import annotations
 
+from sqlalchemy import delete
+
+from app.models.core import Organisation, RefreshToken, User
+
+
 async def test_login_success(async_client, seed_user):
 
     response = await async_client.post(
@@ -135,3 +140,90 @@ async def test_logout(async_client, seed_user):
         json={"refresh_token": body["refresh_token"]},
     )
     assert refresh_after_logout.status_code == 401
+
+
+async def test_bootstrap_creates_first_super_admin(async_client, db_session):
+    await db_session.execute(delete(RefreshToken))
+    await db_session.execute(delete(User))
+    await db_session.execute(delete(Organisation))
+    await db_session.commit()
+
+    response = await async_client.post(
+        "/api/v1/auth/bootstrap",
+        json={
+            "email": "owner@example.com",
+            "password": "StrongPassword123",
+            "full_name": "Owner",
+        },
+    )
+    assert response.status_code == 201
+    body = response.json()
+    assert body["email"] == "owner@example.com"
+    assert body["role"] == "super_admin"
+
+
+async def test_bootstrap_disabled_when_users_exist(async_client, seed_user):
+    response = await async_client.post(
+        "/api/v1/auth/bootstrap",
+        json={"email": "owner2@example.com", "password": "StrongPassword123"},
+    )
+    assert response.status_code == 403
+    assert response.json()["detail"]["code"] == "BOOTSTRAP_DISABLED"
+
+
+async def test_super_admin_can_create_and_list_users(async_client, db_session):
+    await db_session.execute(delete(RefreshToken))
+    await db_session.execute(delete(User))
+    await db_session.execute(delete(Organisation))
+    await db_session.commit()
+
+    bootstrap = await async_client.post(
+        "/api/v1/auth/bootstrap",
+        json={"email": "owner@example.com", "password": "StrongPassword123"},
+    )
+    admin_login = await async_client.post(
+        "/api/v1/auth/login",
+        json={"email": "owner@example.com", "password": "StrongPassword123"},
+    )
+    admin_token = admin_login.json()["access_token"]
+    assert bootstrap.status_code == 201
+
+    create_user = await async_client.post(
+        "/api/v1/auth/users",
+        json={
+            "email": "viewer@example.com",
+            "password": "StrongPassword123",
+            "role": "viewer",
+        },
+        headers={"Authorization": f"Bearer {admin_token}"},
+    )
+    assert create_user.status_code == 201
+    assert create_user.json()["role"] == "viewer"
+
+    list_users = await async_client.get(
+        "/api/v1/auth/users",
+        headers={"Authorization": f"Bearer {admin_token}"},
+    )
+    assert list_users.status_code == 200
+    users = list_users.json()["items"]
+    assert len(users) == 2
+    assert {user["role"] for user in users} == {"super_admin", "viewer"}
+
+
+async def test_non_super_admin_cannot_create_users(async_client, seed_user):
+    login = await async_client.post(
+        "/api/v1/auth/login",
+        json={"email": "test@example.com", "password": "password123"},
+    )
+    access_token = login.json()["access_token"]
+
+    create_user = await async_client.post(
+        "/api/v1/auth/users",
+        json={
+            "email": "viewer@example.com",
+            "password": "StrongPassword123",
+            "role": "viewer",
+        },
+        headers={"Authorization": f"Bearer {access_token}"},
+    )
+    assert create_user.status_code == 403

@@ -182,11 +182,15 @@ def _build_csp(path: str) -> str:
     script_src = "'self'"
     style_src = "'self'"
     font_src = "'self' data:"
+    connect_src = "'self'"
+    worker_src = "'none'"
 
     if path.startswith("/docs") or path.startswith("/redoc"):
         script_src = "'self' https://cdn.jsdelivr.net 'unsafe-inline'"
         style_src = "'self' https://cdn.jsdelivr.net 'unsafe-inline'"
-        font_src = "'self' data: https://cdn.jsdelivr.net"
+        font_src = "'self' data: https://cdn.jsdelivr.net https://fonts.gstatic.com"
+        connect_src = "'self' https://cdn.jsdelivr.net"
+        worker_src = "'self' blob:"
 
     return (
         "default-src 'self'; "
@@ -194,7 +198,9 @@ def _build_csp(path: str) -> str:
         f"style-src {style_src}; "
         "img-src 'self' data: https:; "
         f"font-src {font_src}; "
-        "connect-src 'self'; "
+        f"connect-src {connect_src}; "
+        f"worker-src {worker_src}; "
+        "object-src 'none'; "
         "frame-ancestors 'none'; "
         "base-uri 'self'; "
         "form-action 'self'"
