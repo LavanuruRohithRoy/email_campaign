@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import logging
+
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response, status
 from redis.asyncio import Redis
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -19,6 +21,7 @@ from app.schemas.auth import (
 from app.services import auth_service
 
 router = APIRouter(tags=["Auth"])
+logger = logging.getLogger(__name__)
 
 
 @router.get("/health")
@@ -64,6 +67,7 @@ async def bootstrap(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail={"detail": "Bootstrap is disabled after initial setup", "code": "BOOTSTRAP_DISABLED"},
             ) from exc
+        logger.exception("Unexpected bootstrap error", extra={"error_code": str(exc)})
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail={"detail": "Internal server error", "code": "INTERNAL_SERVER_ERROR"},
@@ -132,6 +136,10 @@ async def create_user(
                 status_code=status.HTTP_409_CONFLICT,
                 detail={"detail": "Email already exists", "code": "DUPLICATE_EMAIL"},
             ) from exc
+        logger.exception(
+            "Unexpected admin user creation error",
+            extra={"error_code": str(exc), "actor_user_id": str(current_user.id)},
+        )
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail={"detail": "Internal server error", "code": "INTERNAL_SERVER_ERROR"},
