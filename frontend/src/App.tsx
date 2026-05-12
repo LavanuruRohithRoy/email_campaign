@@ -24,18 +24,20 @@ export default function App() {
       <Route path="/preferences" element={<PreferencesPage />} />
       <Route element={<ProtectedRoute />}>
         <Route element={<DashboardShell />}>
-          <Route index element={<Navigate to="/dashboard" replace />} />
-          <Route path="dashboard" element={<DashboardPage />} />
+          <Route index element={<Navigate to="/analytics" replace />} />
+          <Route element={<ProtectedRoute roles={["super_admin", "campaign_manager"]} />}>
+            <Route path="dashboard" element={<DashboardPage />} />
+          </Route>
           <Route element={<ProtectedRoute roles={["super_admin", "campaign_manager"]} />}>
             <Route path="contacts" element={<ContactsPage />} />
             <Route path="lists" element={<ListsPage />} />
             <Route path="segments" element={<SegmentsPage />} />
             <Route path="templates" element={<TemplateGalleryPage />} />
             <Route path="templates/new" element={<TemplateEditorPage />} />
+            <Route path="campaigns/new" element={<CampaignComposerPage />} />
+            <Route path="campaigns/:id/edit" element={<CampaignComposerPage />} />
           </Route>
           <Route path="campaigns" element={<PlaceholderPage title="Campaigns" />} />
-          <Route path="campaigns/new" element={<CampaignComposerPage />} />
-          <Route path="campaigns/:id/edit" element={<CampaignComposerPage />} />
           <Route path="campaigns/:id/report" element={<CampaignReportPage />} />
           <Route path="analytics" element={<AnalyticsPage />} />
           <Route element={<ProtectedRoute roles={["super_admin"]} />}>

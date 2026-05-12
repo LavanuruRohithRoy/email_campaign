@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import datetime
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, EmailStr, Field
+from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
 
 from app.models.enums import UserRole
 
@@ -39,3 +39,31 @@ class UserResponse(BaseModel):
     role: UserRole
     is_active: bool
     created_at: datetime
+
+
+class BootstrapRequest(BaseModel):
+    email: EmailStr
+    password: str = Field(min_length=8)
+    full_name: str | None = Field(default=None, max_length=255)
+
+
+class UserCreateRequest(BaseModel):
+    email: EmailStr
+    password: str = Field(min_length=8)
+    role: UserRole
+    full_name: str | None = Field(default=None, max_length=255)
+    is_active: bool = True
+
+    @field_validator("role")
+    @classmethod
+    def validate_assignable_role(cls, value: UserRole) -> UserRole:
+        if value not in {UserRole.CAMPAIGN_MANAGER, UserRole.VIEWER}:
+            raise ValueError("INVALID_ROLE_ASSIGNMENT")
+        return value
+
+
+class UserListResponse(BaseModel):
+    items: list[UserResponse]
+    total: int
+    limit: int
+    offset: int

@@ -143,23 +143,47 @@ The platform uses JWT-based authentication with role-aware authorization middlew
 
 ## Supported Access Layers
 
-- Admin
-- Organization Manager
-- Team Member
+- super_admin
+- campaign_manager
+- viewer
 
 ## Authentication Flow
 
 - Login generates JWT access tokens
+- Refresh rotates single-use refresh tokens
 - Protected routes validate bearer tokens
-- Role checks are enforced at API/service level
+- Role checks are enforced at API/dependency level
 - Organization-scoped access prevents tenant crossover
+- No public registration route is exposed
 
-## Planned Bootstrap Flow
+## Bootstrap Onboarding Flow
 
-Initial administrator provisioning is handled through:
-- registration bootstrap flow
-OR
-- seed/bootstrap admin creation scripts
+- Endpoint: `POST /api/v1/auth/bootstrap`
+- Allowed only when `users` table is empty
+- Creates first `super_admin` and primary organization
+- Returns `403 BOOTSTRAP_DISABLED` once any user already exists
+
+## Role Access Hierarchy
+
+| Role | Access Summary |
+|---|---|
+| super_admin | Full platform control, user/role management, campaign operations, analytics, settings/infrastructure actions |
+| campaign_manager | Campaigns, contacts/lists/segments, templates, scheduling, analytics (no settings/admin controls) |
+| viewer | Read-only analytics/reporting and monitoring paths only |
+
+## Endpoint Authorization Overview
+
+- `/api/v1/auth/users` (create/list): `super_admin` only
+- `/api/v1/auth/bootstrap`: unauthenticated, single-use bootstrap window only
+- Contacts/lists/segments/templates/campaign mutations: `super_admin`, `campaign_manager`
+- Analytics and reporting reads: `super_admin`, `campaign_manager`, `viewer`
+- Settings controls: `super_admin` only
+
+## Dashboard Segregation
+
+- `super_admin`: full sidebar visibility
+- `campaign_manager`: operations + analytics, no settings admin controls
+- `viewer`: monitoring/reporting only (read-only routes)
 
 ---
 
@@ -538,6 +562,7 @@ https://email-campaign-api-clwb.onrender.com/openapi.json
 - AWS SES/SQS/SNS integrated
 - CI/CD workflows operational
 - Runtime stabilization in progress
+- Auth/RBAC hardening active (bootstrap + role-scoped authorization paths)
 
 ---
 
