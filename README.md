@@ -1,270 +1,556 @@
 # Email Campaign Platform
 
-## 1. Project Overview
-Multi-tenant email campaign platform for team-based campaign creation, audience targeting, tracked delivery, unsubscribe compliance, and analytics reporting.
+<div align="center">
 
-## 2. Architecture Overview
-- **Backend:** FastAPI + async SQLAlchemy + PostgreSQL + Redis
-- **Workers:** async queue workers for campaign send processing and scheduling
-- **Infra integrations:** AWS SES (send), SQS (send queue + DLQ), SNS (SES event delivery), S3 (analytics CSV export + template assets)
-- **Frontend:** React + Vite + TypeScript + Tailwind + shadcn-style UI
+### Scalable Multi-Tenant Email Delivery & Campaign Infrastructure
 
-## 3. Tech Stack
-### Backend
-FastAPI, SQLAlchemy 2.x async, Alembic, PostgreSQL, Redis, boto3, python-jose, passlib[bcrypt], httpx, pytest/pytest-asyncio.
+<p align="center">
+  <img src="https://img.shields.io/badge/Backend-FastAPI-009688?style=for-the-badge&logo=fastapi&logoColor=white" />
+  <img src="https://img.shields.io/badge/Frontend-React-20232A?style=for-the-badge&logo=react&logoColor=61DAFB" />
+  <img src="https://img.shields.io/badge/Database-PostgreSQL-316192?style=for-the-badge&logo=postgresql&logoColor=white" />
+  <img src="https://img.shields.io/badge/Cache-Redis-DC382D?style=for-the-badge&logo=redis&logoColor=white" />
+</p>
 
-### Frontend
-React 18, Vite, TypeScript, React Router, TanStack Query, Zustand, Axios, React Hook Form, Zod, Recharts, TailwindCSS.
+<p align="center">
+  <img src="https://img.shields.io/badge/Cloud-AWS-orange?style=flat-square&logo=amazonaws&logoColor=white" />
+  <img src="https://img.shields.io/badge/Deploy-Render-46E3B7?style=flat-square&logo=render&logoColor=black" />
+  <img src="https://img.shields.io/badge/Frontend-Netlify-00C7B7?style=flat-square&logo=netlify&logoColor=white" />
+  <img src="https://img.shields.io/badge/Queue-SQS-red?style=flat-square&logo=amazonaws&logoColor=white" />
+  <img src="https://img.shields.io/badge/Notifications-SNS-yellow?style=flat-square&logo=amazonaws&logoColor=black" />
+</p>
 
-## 4. Backend Structure
-```text
-backend/app/
-  main.py
-  config.py
-  database.py
-  dependencies.py
-  core/
-  middleware/
-  models/
-  routers/
-  schemas/
-  services/
-  utils/
-  workers/
-backend/migrations/
-backend/tests/
-```
+<p align="center">
+  <img src="https://img.shields.io/badge/Stage-Production_Ready-success?style=for-the-badge" />
+  <img src="https://img.shields.io/badge/Architecture-Async_Distributed-blueviolet?style=for-the-badge" />
+</p>
 
-## 5. Frontend Structure
-```text
-frontend/src/
-  components/
-  features/
-    analytics/
-    auth/
-    campaigns/
-    contacts/
-    dashboard/
-    lists/
-    segments/
-    templates/
-    unsubscribe/
-  lib/
-  routes/
-  stores/
-  types/
-```
-
-## 6. Queue/Worker Architecture
-- Campaign sends are enqueued to `AWS_SQS_SEND_QUEUE_URL`
-- `python -m app.workers.send_worker` polls queue, applies suppression/status checks, injects tracking/unsubscribe links, sends via SES, writes `campaign_sends` + `email_events`
-- Failed send processing is retried with exponential backoff using Redis retry keys
-- After `WORKER_MAX_RETRIES`, message is sent to `AWS_SQS_DLQ_URL` when configured
-- `python -m app.workers.scheduler` promotes due scheduled campaigns into send queue
-
-## 7. SES/SQS/SNS Flow
-1. Campaign send starts from API/service layer and enqueues recipient jobs to SQS
-2. Send worker pulls message, renders email, sends using SES configuration set
-3. SES delivery/bounce/complaint notifications go through SNS
-4. SNS notifies webhook endpoint: `POST /webhooks/ses` (also available at `/api/v1/webhooks/ses`)
-5. Webhook processing updates events + suppression and campaign send status
-
-## 8. Analytics Flow
-- Event data (`sent`, `delivered`, `opened`, `clicked`, `bounced`, `complained`, `unsubscribed`) is aggregated from `email_events`
-- Dashboard + campaign report endpoints provide KPI summaries and time-series
-- Report export endpoint builds CSV and uploads to S3, returns presigned URL
-- Redis cache reduces analytics query load (TTL 300s)
-
-## 9. Template Builder Features
-- Template CRUD with org scoping and role checks
-- Builder editor API endpoints under `/api/v1/templates/builder`
-- Supports HTML + design JSON persistence
-- Template image/thumbnail upload support via S3 helpers
-- Template deletion protected when campaigns reference template
-
-## 10. Campaign Flow
-- Draft campaign creation/editing
-- Audience selection via lists/segments with exclusions
-- Recipient resolution with deduplication and suppression/contact-status filtering
-- Review + send now / schedule / cancel schedule / pause / resume
-- Progress endpoint for live send status monitoring
-
-## 11. CI/CD Setup
-GitHub Actions validates quality gates on push/PR to `main`:
-- Backend tests
-- Backend lint/typecheck
-- Frontend lint/typecheck/build
-- Docker compose and image validation
-
-## 12. Docker Setup
-Root `docker-compose.yml` provisions:
-- PostgreSQL
-- Redis
-- Backend API service
-- Send worker service
-- Scheduler service
-
-## 13. Local Development Setup
-### Backend
-```bash
-cd backend
-python -m pip install -r requirements.txt
-alembic upgrade head
-uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
-```
-
-### Frontend
-```bash
-cd frontend
-npm ci
-npm run dev
-```
-
-### Workers
-```bash
-cd backend
-python -m app.workers.send_worker
-python -m app.workers.scheduler
-```
-
-## 14. Environment Variables
-See `.env.example` for full list. Required groups:
-- App/security: `APP_ENV`, `APP_BASE_URL`, `SECRET_KEY`, `JWT_SECRET`
-- Data stores: `DATABASE_URL`, `DATABASE_URL_SYNC`, `REDIS_URL`
-- AWS: `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_REGION`, `AWS_S3_BUCKET`, `AWS_SQS_SEND_QUEUE_URL`, `AWS_SQS_EVENTS_QUEUE_URL`, `AWS_SES_CONFIG_SET`, optional `AWS_SQS_DLQ_URL`
-- Frontend/CORS: `ALLOWED_ORIGINS`, `VITE_API_BASE_URL`
-
-## 15. GitHub Actions Workflows
-- `.github/workflows/backend-tests.yml`
-- `.github/workflows/lint-and-typecheck.yml`
-- `.github/workflows/frontend-build.yml`
-- `.github/workflows/docker-validation.yml`
-
-## 16. Deployment Preparation
-- Configuration validation is fail-fast via `app/config.py`
-- Production guards block localhost DB/Redis/CORS origins
-- Render service definitions included in `render.yaml`
-- Netlify frontend deployment structure included in `netlify.toml`
-- Deployment runbook is in `DEPLOYMENT.md` and `backend/DEPLOYMENT.md`
-
-## 17. Render Deployment Structure
-`render.yaml` defines:
-- `email-backend-web` (FastAPI)
-- `email-send-worker` (SQS send worker)
-- `email-scheduler-worker` (scheduled campaign worker)
-
-Each service uses backend Docker image path and environment groups from `.env.example`.
-
-## 18. Netlify Deployment Structure
-`netlify.toml` defines:
-- Base directory: `frontend`
-- Build command: `npm run build`
-- Publish directory: `frontend/dist`
-- SPA redirect to `index.html`
-
-## 19. Redis Requirements
-Used for:
-- Login rate limiting
-- Analytics cache
-- Worker retry tracking/backoff state
-
-## 20. AWS Requirements
-- SES verified domain/sender and configuration set
-- SNS topic subscribed to SES notifications
-- SQS send queue + events queue + DLQ
-- S3 bucket for template assets and analytics report exports
-- IAM permissions documented in `DEPLOYMENT.md`
-
-## 21. Healthcheck Endpoints
-Platform checks:
-- `/health/live`
-- `/health/ready`
-- `/api/v1/health/live`
-- `/api/v1/health/ready`
-
-Module checks:
-- `/api/v1/auth/health`
-- `/api/v1/analytics/health`
-- `/track/health`
-- `/unsubscribe/health`
-- `/preferences/health`
-- `/webhooks/health`
-
-## 22. Testing Structure
-Backend tests are under `backend/tests/` and cover:
-- auth/RBAC
-- contacts/lists/segments
-- campaigns/sending
-- tracking/unsubscribe
-- analytics
-- worker retry + DLQ
-- production hardening checks
-
-Frontend validation uses lint + TypeScript + build pipeline.
-
-## 23. Production Hardening Features
-- Structured logging middleware and request IDs
-- Trusted hosts + security headers + request size limits
-- Redis-backed auth and webhook rate limiting
-- Production config validation for secrets, URLs, origins
-- Suppression list enforcement before send
-- Opaque tracking/unsubscribe tokens (no public DB IDs)
-
-## 24. Current Project Status
-Repository is in **final pre-hosting readiness phase**:
-- Core FRD scope implemented and operationally integrated
-- CI workflows operational
-- Deployment descriptors present for Render/Netlify
-- Ready for staging credentials insertion and runtime validation
-
-## 25. Remaining Runtime/Deployment Tasks
-- Insert real staging/production credentials (never commit to git)
-- Provision live AWS resources and wire SES/SNS/SQS/S3 ARNs/URLs
-- Configure Render service env vars and worker process scaling
-- Configure Netlify environment and production API origin
-- Run end-to-end staging smoke tests with live queue/event traffic
-- Validate SNS subscription confirmation and webhook signature flow in staging
-- Validate DLQ alarm/monitoring and retry observability dashboards
+</div>
 
 ---
 
-## Commands Reference
-### Migration commands
+# Live Deployment
+
+| Service | URL |
+|---|---|
+| Frontend | https://email-campaign-we.netlify.app/ |
+| Backend API | https://email-campaign-api-clwb.onrender.com |
+| API Docs | https://email-campaign-api-clwb.onrender.com/docs |
+| ReDoc | https://email-campaign-api-clwb.onrender.com/redoc |
+| OpenAPI Spec | https://email-campaign-api-clwb.onrender.com/openapi.json |
+
+---
+
+## Overview
+
+Enterprise-grade multi-tenant email campaign and audience management platform designed for scalable campaign orchestration, queue-driven delivery workflows, analytics tracking, and operational reliability.
+
+The platform supports asynchronous email processing, audience segmentation, delivery telemetry, analytics aggregation, unsubscribe compliance, and distributed worker infrastructure using cloud-native services.
+
+---
+
+# High-Level Architecture
+
+```text
+                    ┌─────────────────────┐
+                    │   React Frontend    │
+                    │     (Netlify)       │
+                    └──────────┬──────────┘
+                               │
+                               ▼
+                    ┌─────────────────────┐
+                    │  FastAPI Backend    │
+                    │      (Render)       │
+                    └──────────┬──────────┘
+                               │
+         ┌─────────────────────┼─────────────────────┐
+         │                     │                     │
+         ▼                     ▼                     ▼
+┌────────────────┐   ┌────────────────┐   ┌────────────────┐
+│ PostgreSQL DB  │   │     Redis      │   │ AWS SQS Queues │
+│    (Render)    │   │   (Upstash)    │   │  Send / DLQ    │
+└────────────────┘   └────────────────┘   └────────┬───────┘
+                                                    │
+                                                    ▼
+                                         ┌────────────────┐
+                                         │ Queue Workers  │
+                                         │ Async Senders  │
+                                         └────────┬───────┘
+                                                  │
+                                                  ▼
+                                         ┌────────────────┐
+                                         │    AWS SES     │
+                                         │ Email Delivery │
+                                         └────────┬───────┘
+                                                  │
+                                                  ▼
+                                         ┌────────────────┐
+                                         │ SNS Webhooks   │
+                                         │ Event Pipeline │
+                                         └────────────────┘
+```
+
+---
+
+# Core Features
+
+## Campaign Management
+
+- Draft and scheduled campaign workflows
+- Send now / scheduled send support
+- Pause and resume capabilities
+- Delivery progress monitoring
+- Audience deduplication
+- Suppression-aware delivery filtering
+
+## Audience & Contact Management
+
+- Contact storage and management
+- List-based targeting
+- Dynamic audience segmentation
+- Exclusion filtering
+- Subscription and suppression enforcement
+
+## Analytics & Reporting
+
+- Delivery metrics
+- Open and click tracking
+- Bounce and complaint handling
+- Time-series analytics aggregation
+- CSV export generation
+- Cached analytics querying
+
+## Template Builder
+
+- Reusable email templates
+- HTML and structured design persistence
+- Organization-scoped template management
+- Asset upload support
+- Builder-oriented APIs
+
+## Authentication & Access Control
+
+- JWT-based authentication
+- Role-aware authorization
+- Tenant-scoped resource access
+- Protected API routes
+- Middleware-driven validation
+
+---
+
+# Authentication & Roles
+
+The platform uses JWT-based authentication with role-aware authorization middleware.
+
+## Supported Access Layers
+
+- Admin
+- Organization Manager
+- Team Member
+
+## Authentication Flow
+
+- Login generates JWT access tokens
+- Protected routes validate bearer tokens
+- Role checks are enforced at API/service level
+- Organization-scoped access prevents tenant crossover
+
+## Planned Bootstrap Flow
+
+Initial administrator provisioning is handled through:
+- registration bootstrap flow
+OR
+- seed/bootstrap admin creation scripts
+
+---
+
+# Architecture Overview
+
+## Backend
+
+- FastAPI
+- Async SQLAlchemy
+- PostgreSQL
+- Redis
+- Alembic
+- boto3
+- python-jose
+- passlib[bcrypt]
+
+## Frontend
+
+- React 18
+- TypeScript
+- Vite
+- TailwindCSS
+- TanStack Query
+- Zustand
+- Axios
+- React Hook Form
+- Recharts
+
+## Infrastructure
+
+- AWS SES
+- AWS SQS
+- AWS SNS
+- AWS S3
+- Docker
+- GitHub Actions
+- Render
+- Netlify
+
+---
+
+# System Flow
+
+## Delivery Pipeline
+
+1. Campaign requests are created through API endpoints
+2. Recipient jobs are pushed into queue infrastructure
+3. Background workers process email delivery asynchronously
+4. Emails are sent through AWS SES
+5. Delivery events are routed through SNS notifications
+6. Event processors update analytics and suppression states
+7. Dashboard services aggregate engagement metrics
+
+---
+
+# Queue & Worker Infrastructure
+
+The platform uses asynchronous queue-based processing to isolate campaign delivery workloads from API request latency.
+
+## Worker Responsibilities
+
+- Queue polling
+- Retry orchestration
+- Delivery scheduling
+- Email rendering
+- Tracking injection
+- Suppression enforcement
+- Failure handling
+- Dead-letter queue forwarding
+
+## Queue Features
+
+- Exponential retry backoff
+- Redis-backed retry state
+- DLQ support
+- Worker isolation
+- Fault-tolerant processing
+
+---
+
+# Analytics Pipeline
+
+Analytics are generated from normalized event telemetry including:
+
+- Sent
+- Delivered
+- Opened
+- Clicked
+- Bounced
+- Complained
+- Unsubscribed
+
+The reporting subsystem supports:
+
+- KPI aggregation
+- Time-series visualization
+- CSV export generation
+- Cached query acceleration
+- Campaign performance reporting
+
+---
+
+# Repository Structure
+
+## Backend
+
+```text
+backend/
+├── app/
+│   ├── core/
+│   ├── middleware/
+│   ├── models/
+│   ├── routers/
+│   ├── schemas/
+│   ├── services/
+│   ├── utils/
+│   └── workers/
+├── migrations/
+└── tests/
+```
+
+## Frontend
+
+```text
+frontend/
+├── src/
+│   ├── components/
+│   ├── features/
+│   ├── routes/
+│   ├── stores/
+│   ├── lib/
+│   └── types/
+```
+
+---
+
+# Local Development
+
+## Backend Setup
+
 ```bash
 cd backend
+
+python -m pip install -r requirements.txt
+
 alembic upgrade head
-alembic revision --autogenerate -m "describe_change"
+
+uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
 ```
 
-### Frontend build commands
+## Frontend Setup
+
 ```bash
 cd frontend
+
 npm ci
-npm run lint
-npx tsc --noEmit
-npm run build
+
+npm run dev
 ```
 
-### Local Docker workflow
+## Worker Services
+
 ```bash
-# start infrastructure and app services
-POSTGRES_USER=postgres POSTGRES_PASSWORD=postgres POSTGRES_DB=postgres docker compose up -d
+cd backend
 
-# validate compose
-POSTGRES_USER=postgres POSTGRES_PASSWORD=postgres POSTGRES_DB=postgres docker compose config
+python -m app.workers.send_worker
 
-# stop
-POSTGRES_USER=postgres POSTGRES_PASSWORD=postgres POSTGRES_DB=postgres docker compose down
+python -m app.workers.scheduler
 ```
 
-### CI validation process
-1. Lint + typecheck backend/frontend
-2. Execute backend tests
-3. Build frontend
-4. Validate docker-compose and Dockerfile build
+---
 
-### Queue and DLQ behavior
-- Send queue receives campaign-recipient jobs
-- Worker retries transient failures and rate-limits SES send rate
-- Messages exceeding `WORKER_MAX_RETRIES` are moved to DLQ (if configured)
-- DLQ payload wraps original message for forensic replay
+# Docker Environment
+
+Containerized orchestration is supported using Docker Compose.
+
+## Included Services
+
+- PostgreSQL
+- Redis
+- Backend API
+- Send Worker
+- Scheduler Worker
+
+## Start Services
+
+```bash
+docker compose up -d
+```
+
+## Stop Services
+
+```bash
+docker compose down
+```
+
+---
+
+# Environment Configuration
+
+## Application & Security
+
+```env
+APP_ENV=
+APP_BASE_URL=
+SECRET_KEY=
+JWT_SECRET=
+```
+
+## Database & Cache
+
+```env
+DATABASE_URL=
+DATABASE_URL_SYNC=
+REDIS_URL=
+```
+
+## AWS Infrastructure
+
+```env
+AWS_ACCESS_KEY_ID=
+AWS_SECRET_ACCESS_KEY=
+AWS_REGION=
+AWS_S3_BUCKET=
+AWS_SQS_SEND_QUEUE_URL=
+AWS_SQS_EVENTS_QUEUE_URL=
+AWS_SES_CONFIG_SET=
+```
+
+## Frontend & CORS
+
+```env
+ALLOWED_ORIGINS=
+VITE_API_BASE_URL=
+```
+
+---
+
+# Deployment Architecture
+
+## Backend Deployment
+
+Backend services are configured for deployment on Render using containerized service definitions.
+
+### Services
+
+- API Service
+- Send Worker
+- Scheduler Worker
+
+## Frontend Deployment
+
+Frontend deployment is configured for Netlify using Vite production builds.
+
+### Build Configuration
+
+```text
+Base Directory: frontend
+Build Command: npm run build
+Publish Directory: frontend/dist
+```
+
+---
+
+# CI/CD Pipeline
+
+GitHub Actions workflows validate:
+
+- Backend tests
+- Frontend builds
+- Type safety
+- Linting
+- Docker validation
+- Compose validation
+
+Automated deployment workflows support:
+
+- Continuous integration
+- Deployment verification
+- Runtime validation
+- Infrastructure consistency
+
+---
+
+# Health Monitoring
+
+## Platform Health Endpoints
+
+```text
+/health/live
+/health/ready
+/api/v1/health/live
+/api/v1/health/ready
+```
+
+## Module Health Endpoints
+
+```text
+/api/v1/auth/health
+/api/v1/analytics/health
+/track/health
+/unsubscribe/health
+/preferences/health
+/webhooks/health
+```
+
+---
+
+# Security & Operational Hardening
+
+The platform includes:
+
+- Structured request logging
+- Security headers
+- Trusted host validation
+- Request size limits
+- Rate limiting
+- Suppression enforcement
+- JWT authentication
+- Role-based authorization
+- Queue retry isolation
+- Production configuration validation
+
+---
+
+# AWS Infrastructure Requirements
+
+The deployment expects:
+
+- Verified SES identities
+- SNS event topics
+- SQS queues and DLQs
+- S3 storage buckets
+- IAM access policies
+
+---
+
+# API Documentation
+
+Interactive API specifications:
+
+```text
+https://email-campaign-api-clwb.onrender.com/docs
+https://email-campaign-api-clwb.onrender.com/redoc
+https://email-campaign-api-clwb.onrender.com/openapi.json
+```
+
+---
+
+# Testing Coverage
+
+## Backend Coverage
+
+- Authentication
+- RBAC validation
+- Campaign workflows
+- Analytics processing
+- Queue retry behavior
+- Worker orchestration
+- Tracking and unsubscribe handling
+
+## Frontend Validation
+
+- Type checking
+- Linting
+- Production build validation
+
+---
+
+# Current Runtime Status
+
+- Backend deployed on Render
+- Frontend deployed on Netlify
+- PostgreSQL provisioned
+- Redis provisioned
+- AWS SES/SQS/SNS integrated
+- CI/CD workflows operational
+- Runtime stabilization in progress
+
+---
+
+# Deployment Status
+
+The platform is structured for production-oriented deployment workflows with integrated infrastructure support across:
+
+- Render
+- Netlify
+- PostgreSQL
+- Redis
+- AWS SES/SQS/SNS/S3
+
+Core application flows, queue infrastructure, analytics processing, and deployment descriptors are operationally integrated and deployment-ready.
+
+---
