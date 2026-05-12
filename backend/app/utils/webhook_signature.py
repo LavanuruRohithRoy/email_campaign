@@ -65,28 +65,35 @@ class SNSSignatureVerifier:
         if not all([signature, cert_url, message, timestamp, message_type]):
             raise WebhookSignatureError("Missing required SNS message fields")
 
+        # Narrow types: all fields are guaranteed non-None and truthy after the check above
+        signature_str: str = str(signature)
+        cert_url_str: str = str(cert_url)
+        message_str: str = str(message)
+        timestamp_str: str = str(timestamp)
+        message_type_str: str = str(message_type)
+
         # Validate certificate URL is from AWS SNS
-        if not cls._is_valid_cert_url(cert_url):
-            raise WebhookSignatureError(f"Invalid certificate URL: {cert_url}")
+        if not cls._is_valid_cert_url(cert_url_str):
+            raise WebhookSignatureError(f"Invalid certificate URL: {cert_url_str}")
 
         # Validate timestamp is recent (within 15 minutes)
-        if not cls._is_recent_timestamp(timestamp):
+        if not cls._is_recent_timestamp(timestamp_str):
             raise WebhookSignatureError("Message timestamp is too old or invalid")
 
         # Fetch and validate certificate
         try:
-            certificate = await cls._get_certificate(cert_url)
+            certificate = await cls._get_certificate(cert_url_str)
         except Exception as e:
             raise WebhookSignatureError(f"Failed to fetch certificate: {e}")
 
         # Build signing string (canonical format)
         signing_string = cls._build_signing_string(
-            message, timestamp, message_type, message_data
+            message_str, timestamp_str, message_type_str, message_data
         )
 
         # Verify signature
         try:
-            if not cls._verify_rsa_signature(certificate, signing_string, signature):
+            if not cls._verify_rsa_signature(certificate, signing_string, signature_str):
                 raise WebhookSignatureError("Signature verification failed")
         except Exception as e:
             raise WebhookSignatureError(f"Signature verification error: {e}")
@@ -94,8 +101,8 @@ class SNSSignatureVerifier:
         logger.info(
             "SNS webhook signature verified successfully",
             extra={
-                "message_type": message_type,
-                "cert_url": cert_url[:50] + "..." if len(cert_url) > 50 else cert_url,
+                "message_type": message_type_str,
+                "cert_url": cert_url_str[:50] + "..." if len(cert_url_str) > 50 else cert_url_str,
             },
         )
 
@@ -190,14 +197,17 @@ class SNSSignatureVerifier:
             from cryptography.hazmat.backends import default_backend
             from cryptography.hazmat.primitives import hashes
             from cryptography.hazmat.primitives.asymmetric import padding
+            from cryptography.hazmat.primitives.asymmetric.rsa import RSAPublicKey
 
             # Load certificate
             cert_obj = x509.load_pem_x509_certificate(
                 certificate.encode(), backend=default_backend()
             )
 
-            # Get public key from certificate
+            # Get public key from certificate - SNS uses RSA keys
             public_key = cert_obj.public_key()
+            if not isinstance(public_key, RSAPublicKey):
+                raise ValueError("Certificate does not contain an RSA public key")
 
             # Decode base64 signature
             decoded_signature = base64.b64decode(signature)

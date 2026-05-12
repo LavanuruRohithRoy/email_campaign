@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from typing import Literal
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, Query, Response, status

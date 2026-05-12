@@ -250,7 +250,7 @@ class Settings(BaseSettings):
 
 
 try:
-    settings = Settings()
+    settings = Settings()  # type: ignore[call-arg]
 except ValidationError as e:
     print("\n" + "="*80)
     print("CONFIGURATION ERROR - Application cannot start")

@@ -247,7 +247,8 @@ async def worker_loop() -> None:
                     contact_id = str(body.get("contact_id"))
                     retry_key = f"send_retry:{campaign_id}:{contact_id}"
                 except Exception:
-                    retry_key = f"send_retry:unknown:{m.get('receipt_handle')[:16]}"
+                    receipt = m.get('receipt_handle')
+                    retry_key = f"send_retry:unknown:{str(receipt)[:16] if receipt is not None else 'unknown'}"
 
                 try:
                     attempts = await redis.incr(retry_key)
