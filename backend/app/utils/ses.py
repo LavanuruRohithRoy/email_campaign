@@ -66,3 +66,15 @@ async def delete_sqs_message(queue_url: str, receipt_handle: str) -> None:
         QueueUrl=queue_url,
         ReceiptHandle=receipt_handle,
     )
+
+
+async def send_message_to_dlq(dlq_url: str, message_body: dict[str, object]) -> None:
+    """Send a message to a configured DLQ (used when retries exhausted)."""
+    if not dlq_url:
+        logger.warning("DLQ URL not configured; cannot send to DLQ")
+        return
+    await asyncio.to_thread(
+        sqs_client.send_message,
+        QueueUrl=dlq_url,
+        MessageBody=json.dumps({"dlq_payload": message_body}),
+    )

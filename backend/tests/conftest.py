@@ -4,6 +4,9 @@ import os
 import sys
 from pathlib import Path
 from collections.abc import AsyncGenerator
+import asyncio
+import time
+from typing import Any
 
 import pytest
 from httpx import AsyncClient
@@ -46,13 +49,68 @@ async def db_session() -> AsyncGenerator[AsyncSession, None]:
 
 
 @pytest.fixture()
-async def redis_client() -> AsyncGenerator[Redis, None]:
-    client = Redis.from_url(settings.REDIS_URL, encoding="utf-8", decode_responses=True)
-    await client.flushdb()
+async def redis_client() -> AsyncGenerator[Any, None]:
+    """Redis fixture that falls back to an in-memory FakeRedis when a real Redis is unavailable."""
+
+    class FakeRedis:
+        def __init__(self):
+            self._store: dict[str, int] = {}
+            self._exp: dict[str, float] = {}
+            self._lock = asyncio.Lock()
+
+        async def flushdb(self):
+            async with self._lock:
+                self._store.clear()
+                self._exp.clear()
+
+        async def incr(self, key: str) -> int:
+            async with self._lock:
+                # expire keys if needed
+                now = time.time()
+                if key in self._exp and self._exp[key] < now:
+                    self._store.pop(key, None)
+                    self._exp.pop(key, None)
+                val = self._store.get(key, 0) + 1
+                self._store[key] = val
+                return val
+
+        async def expire(self, key: str, seconds: int) -> None:
+            async with self._lock:
+                self._exp[key] = time.time() + seconds
+
+        async def delete(self, key: str) -> None:
+            async with self._lock:
+                self._store.pop(key, None)
+                self._exp.pop(key, None)
+
+        async def close(self):
+            return None
+
+    # Try connecting to real Redis; if unavailable, use FakeRedis
     try:
-        yield client
+        client = Redis.from_url(settings.REDIS_URL, encoding="utf-8", decode_responses=True)
+        try:
+            await client.ping()
+            await client.flushdb()
+            yield client
+            await client.close()
+            return
+        except Exception:
+            # fallthrough to fake
+            try:
+                await client.close()
+            except Exception:
+                pass
+
+    except Exception:
+        pass
+
+    fake = FakeRedis()
+    await fake.flushdb()
+    try:
+        yield fake
     finally:
-        await client.close()
+        await fake.close()
 
 
 @pytest.fixture()

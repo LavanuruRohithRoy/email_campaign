@@ -24,6 +24,7 @@ from app.utils.token import (
 
 logger = logging.getLogger(__name__)
 _running = True
+_shutdown_event = None
 
 
 async def process_send_message(message: dict[str, object], db: AsyncSession | None = None) -> bool:
@@ -162,31 +163,168 @@ async def _process_send_message(message: dict[str, object], db: AsyncSession) ->
     return True
 
 
+async def handle_message_with_retries(m: dict[str, object], redis_client, semaphore: asyncio.Semaphore | None = None) -> None:
+    """Process a single message with retry tracking and DLQ routing.
+
+    This is a top-level function so unit tests can exercise retry and DLQ logic.
+    """
+    if semaphore is None:
+        sem = asyncio.Semaphore(1)
+    else:
+        sem = semaphore
+
+    async with sem:
+        try:
+            should_delete = await process_send_message(m)
+            if should_delete:
+                await delete_sqs_message(settings.AWS_SQS_SEND_QUEUE_URL, str(m.get("receipt_handle", "")))
+            await asyncio.sleep(1.0 / settings.MAX_SES_SEND_RATE)
+            return
+        except Exception as exc:
+            try:
+                body = m.get("body", {})
+                campaign_id = str(body.get("campaign_id"))
+                contact_id = str(body.get("contact_id"))
+                retry_key = f"send_retry:{campaign_id}:{contact_id}"
+            except Exception:
+                retry_key = f"send_retry:unknown:{m.get('receipt_handle','')[:16]}"
+
+            try:
+                attempts = await redis_client.incr(retry_key)
+                if attempts == 1:
+                    await redis_client.expire(retry_key, 24 * 3600)
+            except Exception:
+                attempts = 1
+
+            logger.warning(
+                "Send worker processing error; attempt=%s key=%s error=%s",
+                attempts,
+                retry_key,
+                exc,
+            )
+
+            try:
+                backoff = min(2 ** attempts, 60)
+                await asyncio.sleep(backoff)
+            except Exception:
+                pass
+
+            if attempts > settings.WORKER_MAX_RETRIES:
+                try:
+                    from app.utils.ses import send_message_to_dlq
+
+                    await send_message_to_dlq(settings.AWS_SQS_DLQ_URL or "", m.get("body", {}))
+                    await delete_sqs_message(settings.AWS_SQS_SEND_QUEUE_URL, str(m.get("receipt_handle", "")))
+                    logger.error("Message moved to DLQ key=%s attempts=%s", retry_key, attempts)
+                except Exception as e:
+                    logger.error("Failed to move message to DLQ: %s", e)
+
+
 async def worker_loop() -> None:
     semaphore = asyncio.Semaphore(settings.WORKER_CONCURRENCY)
     logger.info("Send worker started")
-    while _running:
+
+    # Redis client for retry tracking
+    from redis.asyncio import Redis
+
+    redis = Redis.from_url(settings.REDIS_URL, encoding="utf-8", decode_responses=True)
+
+    async def _handle_message(m: dict[str, object]) -> None:
+        async with semaphore:
+            try:
+                should_delete = await process_send_message(m)
+                if should_delete:
+                    await delete_sqs_message(settings.AWS_SQS_SEND_QUEUE_URL, str(m["receipt_handle"]))
+                await asyncio.sleep(1.0 / settings.MAX_SES_SEND_RATE)
+                return
+
+            except Exception as exc:
+                # Determine retry key based on campaign_id/contact_id if possible
+                try:
+                    body = m.get("body", {})
+                    campaign_id = str(body.get("campaign_id"))
+                    contact_id = str(body.get("contact_id"))
+                    retry_key = f"send_retry:{campaign_id}:{contact_id}"
+                except Exception:
+                    retry_key = f"send_retry:unknown:{m.get('receipt_handle')[:16]}"
+
+                try:
+                    attempts = await redis.incr(retry_key)
+                    if attempts == 1:
+                        await redis.expire(retry_key, 24 * 3600)
+                except Exception:
+                    attempts = 1
+
+                logger.warning(
+                    "Send worker processing error; attempt=%s key=%s error=%s",
+                    attempts,
+                    retry_key,
+                    exc,
+                )
+
+                # Exponential backoff before next retry
+                try:
+                    backoff = min(2 ** attempts, 60)
+                    await asyncio.sleep(backoff)
+                except Exception:
+                    pass
+
+                if attempts > settings.WORKER_MAX_RETRIES:
+                    # Push to DLQ if configured
+                    try:
+                        from app.utils.ses import send_message_to_dlq
+
+                        await send_message_to_dlq(settings.AWS_SQS_DLQ_URL or "", m.get("body", {}))
+                        await delete_sqs_message(settings.AWS_SQS_SEND_QUEUE_URL, str(m["receipt_handle"]))
+                        logger.error("Message moved to DLQ key=%s attempts=%s", retry_key, attempts)
+                    except Exception as e:
+                        logger.error("Failed to move message to DLQ: %s", e)
+
+    # Use module-level handler for processing with retries
+    
+        
+
+    # Graceful shutdown handling
+    loop = asyncio.get_event_loop()
+
+    def _on_signal(sig):
+        nonlocal _shutdown_event
+        logger.info("Received shutdown signal: %s", sig)
+        if _shutdown_event and not _shutdown_event.is_set():
+            _shutdown_event.set()
+
+    try:
+        loop.add_signal_handler
+    except Exception:
+        # Windows loop may not support add_signal_handler in same way
+        pass
+
+    _shutdown_event = asyncio.Event()
+
+    while _running and not _shutdown_event.is_set():
         try:
             messages = await receive_sqs_messages(settings.AWS_SQS_SEND_QUEUE_URL)
             tasks: list[asyncio.Task[None]] = []
             for message in messages:
+                tasks.append(asyncio.create_task(handle_message_with_retries(message, redis, semaphore)))
 
-                async def handle(m: dict[str, object] = message) -> None:
-                    async with semaphore:
-                        should_delete = await process_send_message(m)
-                        if should_delete:
-                            await delete_sqs_message(
-                                settings.AWS_SQS_SEND_QUEUE_URL,
-                                str(m["receipt_handle"]),
-                            )
-                        await asyncio.sleep(1.0 / settings.MAX_SES_SEND_RATE)
-
-                tasks.append(asyncio.create_task(handle()))
             if tasks:
-                await asyncio.gather(*tasks, return_exceptions=True)
+                # collect and log exceptions per-task but continue loop
+                results = await asyncio.gather(*tasks, return_exceptions=True)
+                for res in results:
+                    if isinstance(res, Exception):
+                        logger.error("Task error: %s", res)
+
         except Exception as exc:
-            logger.error("Worker error: %s", exc)
+            logger.error("Worker loop error: %s", exc, exc_info=True)
             await asyncio.sleep(5)
+
+    # Cleanup
+    try:
+        await redis.close()
+    except Exception:
+        pass
+    logger.info("Send worker stopped")
 
 
 if __name__ == "__main__":

@@ -1,4 +1,15 @@
 .env
+logs/
+frontend/dist/
+frontend/.cache/
+.DS_Store
+.vscode/
+.idea/
+backend/.venv
+*.log
+coverage.xml
+docker-compose.override.yml
+secrets/.env
 .env.*
 .venv/
 __pycache__/

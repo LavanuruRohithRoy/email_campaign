@@ -22,6 +22,8 @@ from app.schemas.campaign import (
     TestSendRequest,
 )
 from app.services import campaign_service
+from app.middleware.rate_limit import ip_rate_limit, org_rate_limit
+from app.config import settings
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -199,6 +201,7 @@ async def test_send(
     payload: TestSendRequest,
     current_user: User = Depends(require_role("super_admin", "campaign_manager")),
     db: AsyncSession = Depends(get_db),
+    _rl: None = Depends(ip_rate_limit(limit=settings.RATE_LIMIT_TEST_EMAIL_PER_HOUR, window=3600)),
 ) -> dict[str, list[str] | str]:
     try:
         addresses = [str(address) for address in payload.email_addresses]
@@ -208,11 +211,13 @@ async def test_send(
     return {"status": "queued", "addresses": addresses}
 
 
+
 @router.post("/{campaign_id}/send")
 async def send_campaign(
     campaign_id: UUID,
     current_user: User = Depends(require_role("super_admin", "campaign_manager")),
     db: AsyncSession = Depends(get_db),
+    _org_rl: None = Depends(org_rate_limit(limit=1000, window=3600)),
 ) -> dict[str, str | int]:
     try:
         queued = await campaign_service.enqueue_campaign(current_user.org_id, campaign_id, db)
