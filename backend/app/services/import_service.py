@@ -190,7 +190,7 @@ async def run_import(
                 await db.execute(insert_stmt)
             except Exception as exc:  # noqa: BLE001
                 job.errored += 1
-                job.error_log = list(job.error_log or []) + [{"row": index, "error": str(exc)}]
+                job.error_log = list(job.error_log or []) + [{"row": str(index), "error": str(exc)}]
         job.status = ImportJobStatus.COMPLETED
         job.completed_at = datetime.now(timezone.utc)
         await db.commit()

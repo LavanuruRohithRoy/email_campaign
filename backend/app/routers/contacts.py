@@ -49,7 +49,7 @@ async def list_contacts(
         offset,
         db,
         sort_by=sort_by,
-        sort_order=sort_order if sort_order in {"asc", "desc"} else "desc",
+        sort_order=sort_order if sort_order in {"asc", "desc"} else "desc",  # type: ignore[arg-type]
     )
     memberships = await _load_memberships(current_user.org_id, [contact.id for contact in contacts], db)
     items = [

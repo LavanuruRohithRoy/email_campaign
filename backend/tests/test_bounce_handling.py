@@ -337,7 +337,7 @@ async def test_subscription_confirmation_handled(mock_get, async_client):
     response = await async_client.post("/webhooks/ses", json=envelope)
     assert response.status_code == 200
     assert response.json()["status"] == "subscription_confirmed"
-    mock_get.assert_called_once_with("https://sns.ap-south-1.amazonaws.com/confirm")
+    mock_get.assert_called_once_with("https://sns.ap-south-1.amazonaws.com/confirm", timeout=10.0)
 
 
 @patch("app.workers.send_worker.send_email_via_ses")

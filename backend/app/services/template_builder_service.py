@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import logging
 from datetime import datetime
-from typing import Dict
+from typing import Any, Dict
 
 import bleach
 from redis.asyncio import Redis
@@ -66,7 +66,7 @@ async def save_template_version(template: Template, design_json: dict, html: str
     This appends a versions array to Template.blocks['_versions'] and updates html and blocks.
     """
     now = datetime.utcnow()
-    blocks = dict(template.blocks or {})
+    blocks: dict[str, Any] = dict(template.blocks or {})
     meta = blocks.get("_meta", {})
     version = meta.get("version", 1)
     version += 1

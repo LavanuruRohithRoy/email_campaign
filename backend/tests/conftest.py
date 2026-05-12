@@ -10,6 +10,13 @@ import asyncio
 import time
 from typing import Any
 
+# Ensure the backend root is on sys.path before any app imports.
+BACKEND_ROOT = Path(__file__).resolve().parents[1]
+if str(BACKEND_ROOT) not in sys.path:
+    sys.path.insert(0, str(BACKEND_ROOT))
+
+os.environ.setdefault("APP_ENV", "test")
+
 import pytest
 from httpx import AsyncClient
 from redis.asyncio import Redis
@@ -25,12 +32,6 @@ from app.models.core import Organisation, User, RefreshToken
 from app.models.tracking import EmailEvent, TrackingToken
 from app.models.enums import UserRole
 from app.utils.security import hash_password
-
-BACKEND_ROOT = Path(__file__).resolve().parents[1]
-if str(BACKEND_ROOT) not in sys.path:
-    sys.path.insert(0, str(BACKEND_ROOT))
-
-os.environ.setdefault("APP_ENV", "test")
 
 from app.config import settings
 from app.main import app

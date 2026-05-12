@@ -120,7 +120,7 @@ async def list_contacts_in_list(
             offset,
             db,
             sort_by=sort_by,
-            sort_order=sort_order if sort_order in {"asc", "desc"} else "desc",
+            sort_order=sort_order if sort_order in {"asc", "desc"} else "desc",  # type: ignore[arg-type]
         )
     except ValueError as exc:
         raise value_error_to_http_exception(exc) from exc

@@ -18,7 +18,7 @@ def upgrade() -> None:
         "updated_at",
         existing_type=sa.DateTime(timezone=True),
         nullable=False,
-        existing_server_default=sa.text("now()"),
+        existing_server_default="now()",
     )
 
 
@@ -28,5 +28,5 @@ def downgrade() -> None:
         "updated_at",
         existing_type=sa.DateTime(timezone=True),
         nullable=True,
-        existing_server_default=sa.text("now()"),
+        existing_server_default="now()",
     )

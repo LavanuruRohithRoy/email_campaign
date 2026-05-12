@@ -13,7 +13,7 @@ import contextvars
 import logging
 import time
 import uuid
-from typing import Callable
+from typing import Any, Callable
 
 from fastapi import Request, Response
 from fastapi.exceptions import RequestValidationError
@@ -71,7 +71,7 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
             return response
 
         # Create logger with request ID context
-        log_extra = {
+        log_extra: dict[str, Any] = {
             "request_id": request_id,
             "method": request.method,
             "path": request.url.path,
