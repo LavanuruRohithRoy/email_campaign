@@ -11,6 +11,8 @@ coverage.xml
 docker-compose.override.yml
 secrets/.env
 .env.*
+!.env.example
+!.env.test
 .venv/
 __pycache__/
 *.pyc
