@@ -37,18 +37,7 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
 
         # Content Security Policy
-        # Restrict resource loading to same origin, inline scripts in specific cases
-        csp = (
-            "default-src 'self'; "
-            "script-src 'self' 'unsafe-inline' 'unsafe-eval'; "  # Allow inline for frontend app
-            "style-src 'self' 'unsafe-inline'; "  # Allow inline styles for shadcn/tailwind
-            "img-src 'self' data: https:; "
-            "font-src 'self' data:; "
-            "connect-src 'self'; "  # Restrict API calls to same origin
-            "frame-ancestors 'none'; "
-            "base-uri 'self'; "
-            "form-action 'self'"
-        )
+        csp = _build_csp(request.url.path)
         response.headers["Content-Security-Policy"] = csp
 
         # HSTS for production only (forces HTTPS)
@@ -186,3 +175,27 @@ def _is_sensitive_endpoint(path: str) -> bool:
         "/api/v1/settings",
     ]
     return any(path.startswith(prefix) for prefix in sensitive_prefixes)
+
+
+def _build_csp(path: str) -> str:
+    """Build CSP with route-specific allowances for Swagger/ReDoc assets."""
+    script_src = "'self'"
+    style_src = "'self'"
+    font_src = "'self' data:"
+
+    if path.startswith("/docs") or path.startswith("/redoc"):
+        script_src = "'self' https://cdn.jsdelivr.net 'unsafe-inline'"
+        style_src = "'self' https://cdn.jsdelivr.net 'unsafe-inline'"
+        font_src = "'self' data: https://cdn.jsdelivr.net"
+
+    return (
+        "default-src 'self'; "
+        f"script-src {script_src}; "
+        f"style-src {style_src}; "
+        "img-src 'self' data: https:; "
+        f"font-src {font_src}; "
+        "connect-src 'self'; "
+        "frame-ancestors 'none'; "
+        "base-uri 'self'; "
+        "form-action 'self'"
+    )
