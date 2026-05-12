@@ -1,35 +1,42 @@
-# Deployment Notes
+# Backend Deployment Notes
 
-This document outlines preparation steps for deploying the backend to Render (web service + worker).
-
-Commands:
-
-- Run migrations before startup:
-
+## Commands
+### Run migrations
 ```bash
-export DATABASE_URL=postgresql+asyncpg://user:pass@host:5432/db
 cd backend
 alembic upgrade head
 ```
 
-- Start web service (example using gunicorn):
-
+### Start API service
 ```bash
 gunicorn -k uvicorn.workers.UvicornWorker app.main:app --bind 0.0.0.0:$PORT
 ```
 
-- Start worker service:
-
+### Start send worker
 ```bash
 python -m app.workers.send_worker
 ```
 
-Healthcheck endpoints:
+### Start scheduler worker
+```bash
+python -m app.workers.scheduler
+```
 
-- `/health/live` - process liveness
-- `/health/ready` - DB + Redis readiness
+## Healthchecks
+- `/health/live` and `/api/v1/health/live`
+- `/health/ready` and `/api/v1/health/ready`
 
-DLQ behavior:
+## DLQ Behavior
+- Configure `AWS_SQS_DLQ_URL` to enable dead-letter forwarding.
+- Worker retries failures up to `WORKER_MAX_RETRIES` before DLQ handoff.
 
-- Configure `AWS_SQS_DLQ_URL` in environment for the worker to route failing messages.
-- Worker will attempt `WORKER_MAX_RETRIES` then push payload to DLQ.
+## SES/SNS/SQS/S3 Integration Expectations
+- SES: used for campaign and test email sends.
+- SNS: sends SES event notifications to `/webhooks/ses`.
+- SQS: send worker polls `AWS_SQS_SEND_QUEUE_URL`.
+- S3: analytics CSV export + template asset storage.
+
+## Render Runtime Notes
+- Keep API and workers as separate services.
+- Use shared environment variables across backend and worker services.
+- Ensure migrations run before promoting a new API release.

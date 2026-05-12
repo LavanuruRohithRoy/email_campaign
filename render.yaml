@@ -1,13 +1,62 @@
-# Render service definitions (example) - do not auto-deploy
 services:
   - type: web
-    name: email-backend
-    env: docker
-    plan: free
-    buildCommand: ""
-    startCommand: "gunicorn -k uvicorn.workers.UvicornWorker app.main:app --bind 0.0.0.0:$PORT"
+    name: email-backend-web
+    runtime: docker
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: .
+    plan: starter
+    autoDeploy: false
+    startCommand: gunicorn -k uvicorn.workers.UvicornWorker app.main:app --bind 0.0.0.0:$PORT
+    envVars:
+      - key: APP_ENV
+        sync: false
+      - key: APP_BASE_URL
+        sync: false
+      - key: SECRET_KEY
+        sync: false
+      - key: JWT_SECRET
+        sync: false
+      - key: DATABASE_URL
+        sync: false
+      - key: DATABASE_URL_SYNC
+        sync: false
+      - key: REDIS_URL
+        sync: false
+      - key: AWS_ACCESS_KEY_ID
+        sync: false
+      - key: AWS_SECRET_ACCESS_KEY
+        sync: false
+      - key: AWS_REGION
+        sync: false
+      - key: AWS_S3_BUCKET
+        sync: false
+      - key: AWS_SQS_SEND_QUEUE_URL
+        sync: false
+      - key: AWS_SQS_EVENTS_QUEUE_URL
+        sync: false
+      - key: AWS_SQS_DLQ_URL
+        sync: false
+      - key: AWS_SES_CONFIG_SET
+        sync: false
+      - key: ALLOWED_ORIGINS
+        sync: false
+      - key: VITE_API_BASE_URL
+        sync: false
+
   - type: worker
-    name: email-worker
-    env: docker
-    plan: free
-    startCommand: "python -m app.workers.send_worker"
+    name: email-send-worker
+    runtime: docker
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: .
+    plan: starter
+    autoDeploy: false
+    startCommand: python -m app.workers.send_worker
+
+  - type: worker
+    name: email-scheduler-worker
+    runtime: docker
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: .
+    plan: starter
+    autoDeploy: false
+    startCommand: python -m app.workers.scheduler
