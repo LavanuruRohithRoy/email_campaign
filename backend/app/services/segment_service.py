@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from typing import Any
 from uuid import UUID
 
 from redis.asyncio import Redis
@@ -52,11 +53,12 @@ async def delete_segment(org_id: UUID, segment_id: UUID, db: AsyncSession) -> No
     await db.commit()
 
 
-def _segment_condition(condition: SegmentRuleCondition):
+def _segment_condition(condition: SegmentRuleCondition) -> Any:
     field = condition.field
     operator = condition.operator.lower()
     value = condition.value
 
+    column: Any
     if field == "status":
         column = Contact.status
     elif field == "email":
@@ -91,9 +93,9 @@ async def count_segment(org_id: UUID, segment_id: UUID, db: AsyncSession, redis:
         return int(cached)
 
     segment = await _get_segment(org_id, segment_id, db)
-    rules = segment.rules or {}
+    rules: dict[str, Any] = segment.rules or {}
     operator = str(rules.get("operator", "AND")).upper()
-    conditions_data = rules.get("conditions", [])
+    conditions_data: list[Any] = rules.get("conditions", [])
     conditions = [_segment_condition(SegmentRuleCondition.model_validate(condition)) for condition in conditions_data]
 
     query = select(func.count(Contact.id)).where(Contact.org_id == org_id)
@@ -110,9 +112,9 @@ async def count_segment(org_id: UUID, segment_id: UUID, db: AsyncSession, redis:
 
 async def evaluate_segment_contacts(org_id: UUID, segment_id: UUID, db: AsyncSession) -> list[UUID]:
     segment = await _get_segment(org_id, segment_id, db)
-    rules = segment.rules or {}
+    rules: dict[str, Any] = segment.rules or {}
     operator = str(rules.get("operator", "AND")).upper()
-    conditions_data = rules.get("conditions", [])
+    conditions_data: list[Any] = rules.get("conditions", [])
     conditions = [_segment_condition(SegmentRuleCondition.model_validate(condition)) for condition in conditions_data]
 
     query = select(Contact.id).where(Contact.org_id == org_id)

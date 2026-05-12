@@ -4,7 +4,7 @@ import logging
 from contextlib import asynccontextmanager
 from collections.abc import AsyncGenerator
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
@@ -59,7 +59,7 @@ async def lifespan(_: FastAPI) -> AsyncGenerator[None, None]:
 app = FastAPI(title="Email Campaign Platform", version="1.0.0", lifespan=lifespan)
 
 
-async def _validation_exception_handler(request, exc: RequestValidationError):
+async def _validation_exception_handler(request: Request, exc: RequestValidationError) -> JSONResponse:
     request_id = request.headers.get("X-Request-ID") or request_id_ctx.get("") or ""
     logging.getLogger("app.middleware.request_error").warning(
         f"Validation error on {request.method} {request.url.path}",
@@ -81,7 +81,7 @@ async def _validation_exception_handler(request, exc: RequestValidationError):
     )
 
 
-app.add_exception_handler(RequestValidationError, _validation_exception_handler)
+app.add_exception_handler(RequestValidationError, _validation_exception_handler)  # type: ignore[arg-type]
 
 # Add middleware in reverse order (they execute in reverse order)
 # Request size limit (must be first to reject oversized requests early)

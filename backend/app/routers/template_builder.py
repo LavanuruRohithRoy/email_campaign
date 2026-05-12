@@ -1,10 +1,13 @@
 from __future__ import annotations
 
+from uuid import UUID
+
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
-from typing import List
+from typing import Any, List
 
 from app.dependencies import get_db, require_role, get_redis
+from app.schemas.template import TemplateCreate
 from app.schemas.template_builder import (
     TemplateBuilderSaveRequest,
     TemplatePreviewRequest,
@@ -30,9 +33,16 @@ async def save_builder_template(
     db: AsyncSession = Depends(get_db),
 ) -> dict[str, str]:
     # create a Template using existing service and store design in blocks
+    template_data = TemplateCreate(
+        name=payload.name,
+        category=None,
+        blocks=payload.design_json,
+        html=payload.html_content,
+        thumbnail_url=None,
+    )
     template = await create_template(
         current_user.org_id,
-        type("T", (), {"name": payload.name, "category": None, "blocks": payload.design_json, "html": payload.html_content, "thumbnail_url": None}),
+        template_data,
         db,
     )
     # also record a version
@@ -83,11 +93,11 @@ async def list_versions(
     db: AsyncSession = Depends(get_db),
 ) -> List[TemplateVersionResponse]:
     try:
-        template = await get_template(current_user.org_id, template_id, db)
+        template = await get_template(current_user.org_id, UUID(template_id), db)
     except ValueError:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="NOT_FOUND")
-    blocks = template.blocks or {}
-    versions = blocks.get("_versions", [])
+    blocks: dict[str, Any] = template.blocks or {}
+    versions: list[Any] = blocks.get("_versions", [])
     result: List[TemplateVersionResponse] = []
     for ver in versions:
         result.append(TemplateVersionResponse(id=template.id, version=ver.get("version"), created_at=ver.get("created_at")))
@@ -102,11 +112,11 @@ async def restore_version(
     db: AsyncSession = Depends(get_db),
 ) -> dict[str, str]:
     try:
-        template = await get_template(current_user.org_id, template_id, db)
+        template = await get_template(current_user.org_id, UUID(template_id), db)
     except ValueError:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="NOT_FOUND")
-    blocks = template.blocks or {}
-    versions = blocks.get("_versions", [])
+    blocks: dict[str, Any] = template.blocks or {}
+    versions: list[Any] = blocks.get("_versions", [])
     match = None
     for ver in versions:
         if ver.get("version") == version:
@@ -119,4 +129,4 @@ async def restore_version(
     template.html = match.get("html") or template.html
     await db.commit()
     await db.refresh(template)
-    return {"id": str(template.id), "version": version, "status": "restored"}
+    return {"id": str(template.id), "version": str(version), "status": "restored"}

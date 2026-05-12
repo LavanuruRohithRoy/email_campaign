@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 import logging
 from datetime import datetime, timezone
+from typing import Any
 from uuid import UUID
 
 from sqlalchemy import func, select
@@ -163,7 +164,7 @@ async def _process_send_message(message: dict[str, object], db: AsyncSession) ->
     return True
 
 
-async def handle_message_with_retries(m: dict[str, object], redis_client, semaphore: asyncio.Semaphore | None = None) -> None:
+async def handle_message_with_retries(m: dict[str, Any], redis_client, semaphore: asyncio.Semaphore | None = None) -> None:
     """Process a single message with retry tracking and DLQ routing.
 
     This is a top-level function so unit tests can exercise retry and DLQ logic.
@@ -229,7 +230,7 @@ async def worker_loop() -> None:
 
     redis = Redis.from_url(settings.REDIS_URL, encoding="utf-8", decode_responses=True)
 
-    async def _handle_message(m: dict[str, object]) -> None:
+    async def _handle_message(m: dict[str, Any]) -> None:
         async with semaphore:
             try:
                 should_delete = await process_send_message(m)

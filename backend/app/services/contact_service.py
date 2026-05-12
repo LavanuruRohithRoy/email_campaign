@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Literal
+from typing import Any, Literal
 from uuid import UUID
 
 from sqlalchemy import delete, func, or_, select
@@ -95,7 +95,7 @@ async def delete_list(org_id: UUID, list_id: UUID, db: AsyncSession) -> None:
     await db.commit()
 
 
-def _apply_contact_search(query, search: str | None) -> object:
+def _apply_contact_search(query: Any, search: str | None) -> Any:
     if search is None or not search.strip():
         return query
     term = f"%{search.strip()}%"
@@ -108,7 +108,7 @@ def _apply_contact_search(query, search: str | None) -> object:
     )
 
 
-def _apply_contact_status(query, status: ContactStatus | None) -> object:
+def _apply_contact_status(query: Any, status: ContactStatus | None) -> Any:
     if status is None:
         return query
     return query.where(Contact.status == status)

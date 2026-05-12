@@ -23,7 +23,7 @@ def verify_password(plain: str, hashed: str) -> bool:
 
 
 def create_access_token(data: dict[str, str], expires_delta: timedelta) -> str:
-    payload: dict[str, str | datetime] = data.copy()
+    payload: dict[str, Any] = dict(data)
     payload["exp"] = datetime.now(timezone.utc) + expires_delta
     return jwt.encode(payload, settings.JWT_SECRET, algorithm="HS256")
 
