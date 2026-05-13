@@ -37,7 +37,9 @@ export default function App() {
             <Route path="campaigns/new" element={<CampaignComposerPage />} />
             <Route path="campaigns/:id/edit" element={<CampaignComposerPage />} />
           </Route>
-          <Route path="campaigns" element={<PlaceholderPage title="Campaigns" />} />
+          <Route element={<ProtectedRoute roles={["super_admin", "campaign_manager"]} />}>
+            <Route path="campaigns" element={<PlaceholderPage title="Campaigns" />} />
+          </Route>
           <Route path="campaigns/:id/report" element={<CampaignReportPage />} />
           <Route path="analytics" element={<AnalyticsPage />} />
           <Route element={<ProtectedRoute roles={["super_admin"]} />}>

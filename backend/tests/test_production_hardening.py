@@ -86,3 +86,16 @@ async def test_docs_and_redoc_csp_allows_required_assets(async_client):
     assert "worker-src 'self' blob:" in docs_csp
     assert "script-src" in redoc_csp
     assert "worker-src 'self' blob:" in redoc_csp
+
+
+async def test_openapi_auth_tag_is_single_group(async_client):
+    response = await async_client.get("/openapi.json")
+    assert response.status_code == 200
+    tags = {
+        tag
+        for path_item in response.json().get("paths", {}).values()
+        for operation in path_item.values()
+        for tag in operation.get("tags", [])
+    }
+    assert "Auth" in tags
+    assert "auth" not in tags

@@ -7,10 +7,13 @@ from collections.abc import AsyncGenerator
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.openapi.utils import get_openapi
 from fastapi.responses import JSONResponse
 from redis.asyncio import Redis
+from sqlalchemy import select
 
 from app.config import settings
+from app.database import sync_engine
 from app.core.logging import setup_logging
 from app.middleware.request_error import (
     RequestIDMiddleware,
@@ -36,6 +39,7 @@ from app.routers.tracking import router as tracking_router
 from app.routers.unsubscribe import router as unsubscribe_router
 from app.routers.webhooks import router as webhooks_router
 from app.routers.health import router as health_router
+from app.models.core import User
 
 # Initialize structured logging
 setup_logging()
@@ -111,18 +115,49 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-app.include_router(auth_router, prefix="/api/v1/auth", tags=["auth"])
-app.include_router(contacts_router, prefix="/api/v1/contacts", tags=["contacts"])
-app.include_router(lists_router, prefix="/api/v1/lists", tags=["lists"])
-app.include_router(segments_router, prefix="/api/v1/segments", tags=["segments"])
-app.include_router(templates_router, prefix="/api/v1/templates", tags=["templates"])
-app.include_router(template_builder_router, prefix="/api/v1/templates/builder", tags=["templates","builder"])
-app.include_router(campaigns_router, prefix="/api/v1/campaigns", tags=["campaigns"])
-app.include_router(analytics_router, prefix="/api/v1/analytics", tags=["analytics"])
+def _bootstrap_openapi_enabled() -> bool:
+    try:
+        with sync_engine.connect() as conn:
+            first_user_exists = conn.execute(select(User.id).limit(1)).scalar_one_or_none()
+        return first_user_exists is None
+    except Exception:
+        logger.warning("Unable to evaluate bootstrap docs visibility from database state", exc_info=True)
+        return True
+
+
+def custom_openapi() -> dict:
+    bootstrap_enabled = _bootstrap_openapi_enabled()
+    if app.openapi_schema is not None and getattr(app.state, "openapi_bootstrap_enabled", None) == bootstrap_enabled:
+        return app.openapi_schema
+
+    schema = get_openapi(
+        title=app.title,
+        version=app.version,
+        routes=app.routes,
+        description=app.description,
+    )
+    if not bootstrap_enabled:
+        schema.get("paths", {}).pop("/api/v1/auth/bootstrap", None)
+
+    app.openapi_schema = schema
+    app.state.openapi_bootstrap_enabled = bootstrap_enabled
+    return app.openapi_schema
+
+
+app.openapi = custom_openapi
+
+app.include_router(auth_router, prefix="/api/v1/auth", tags=["Auth"])
+app.include_router(contacts_router, prefix="/api/v1/contacts", tags=["Contacts"])
+app.include_router(lists_router, prefix="/api/v1/lists", tags=["Lists"])
+app.include_router(segments_router, prefix="/api/v1/segments", tags=["Segments"])
+app.include_router(templates_router, prefix="/api/v1/templates", tags=["Templates"])
+app.include_router(template_builder_router, prefix="/api/v1/templates/builder", tags=["Templates"])
+app.include_router(campaigns_router, prefix="/api/v1/campaigns", tags=["Campaigns"])
+app.include_router(analytics_router, prefix="/api/v1/analytics", tags=["Analytics"])
 app.include_router(webhooks_router)
 app.include_router(webhooks_router, prefix="/api/v1")
 app.include_router(health_router)
 app.include_router(health_router, prefix="/api/v1")
-app.include_router(tracking_router, prefix="/track", tags=["tracking"])
-app.include_router(unsubscribe_router, prefix="/unsubscribe", tags=["unsubscribe"])
-app.include_router(preferences_router, prefix="/preferences", tags=["preferences"])
+app.include_router(tracking_router, prefix="/track", tags=["Tracking"])
+app.include_router(unsubscribe_router, prefix="/unsubscribe", tags=["Unsubscribe"])
+app.include_router(preferences_router, prefix="/preferences", tags=["Preferences"])

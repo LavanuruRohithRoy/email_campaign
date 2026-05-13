@@ -7,7 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.database import get_db
 from app.services.tracking_service import record_click, record_open
 
-router = APIRouter(tags=["Tracking"])
+router = APIRouter()
 
 # 1x1 transparent PNG bytes.
 TRACKING_PIXEL = (

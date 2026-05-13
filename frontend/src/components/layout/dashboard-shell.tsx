@@ -28,7 +28,7 @@ const navItems: Array<{ href: string; label: string; icon: typeof LayoutDashboar
   { href: "/lists", label: "Lists", icon: List, roles: ["super_admin", "campaign_manager"] },
   { href: "/segments", label: "Segments", icon: Tags, roles: ["super_admin", "campaign_manager"] },
   { href: "/templates", label: "Templates", icon: MailPlus, roles: ["super_admin", "campaign_manager"] },
-  { href: "/campaigns", label: "Campaigns", icon: MailPlus, roles: ["super_admin", "campaign_manager", "viewer"] },
+  { href: "/campaigns", label: "Campaigns", icon: MailPlus, roles: ["super_admin", "campaign_manager"] },
   { href: "/analytics", label: "Analytics", icon: BarChart3, roles: ["super_admin", "campaign_manager", "viewer"] },
   { href: "/settings", label: "Settings", icon: Settings, roles: ["super_admin"] },
 ];

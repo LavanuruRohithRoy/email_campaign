@@ -5,7 +5,7 @@ from datetime import datetime, timedelta, timezone
 from uuid import UUID
 
 from redis.asyncio import Redis
-from sqlalchemy import func, select
+from sqlalchemy import func, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.middleware.rate_limit import check_login_rate_limit, reset_login_rate_limit
@@ -125,24 +125,27 @@ async def bootstrap_super_admin(
     db: AsyncSession,
     full_name: str | None = None,
 ) -> User:
-    first_user_exists = await db.scalar(select(User.id).limit(1))
-    if first_user_exists is not None:
-        raise ValueError("BOOTSTRAP_DISABLED")
+    async with db.begin():
+        await db.execute(text("SELECT pg_advisory_xact_lock(:lock_key)"), {"lock_key": 918273645})
 
-    organisation = Organisation(name="Primary Organisation")
-    db.add(organisation)
-    await db.flush()
+        first_user_exists = await db.scalar(select(User.id).limit(1))
+        if first_user_exists is not None:
+            raise ValueError("BOOTSTRAP_DISABLED")
 
-    user = User(
-        org_id=organisation.id,
-        email=email,
-        password_hash=hash_password(password),
-        full_name=full_name,
-        role=UserRole.SUPER_ADMIN,
-        is_active=True,
-    )
-    db.add(user)
-    await db.commit()
+        organisation = Organisation(name="Primary Organisation")
+        db.add(organisation)
+        await db.flush()
+
+        user = User(
+            org_id=organisation.id,
+            email=email,
+            password_hash=hash_password(password),
+            full_name=full_name,
+            role=UserRole.SUPER_ADMIN,
+            is_active=True,
+        )
+        db.add(user)
+
     await db.refresh(user)
     return user
 
