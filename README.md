@@ -35,7 +35,7 @@
 | Frontend | https://email-campaign-we.netlify.app/ |
 | Backend API | https://email-campaign-api-clwb.onrender.com |
 | API Docs | https://email-campaign-api-clwb.onrender.com/docs |
-| ReDoc | https://email-campaign-api-clwb.onrender.com/redoc |
+| Video demo | https://www.loom.com/share/707f50497164432e94d4fb0f6c929f82 |
 | OpenAPI Spec | https://email-campaign-api-clwb.onrender.com/openapi.json |
 
 ---
