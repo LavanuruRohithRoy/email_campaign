@@ -2,7 +2,7 @@
 
 <div align="center">
 
-### Scalable Multi-Tenant Email Delivery & Campaign Infrastructure
+### Scalable RBAC Email Delivery & Campaign Infrastructure
 
 <p align="center">
   <img src="https://img.shields.io/badge/Backend-FastAPI-009688?style=for-the-badge&logo=fastapi&logoColor=white" />
@@ -42,7 +42,7 @@
 
 ## Overview
 
-Enterprise-grade multi-tenant email campaign and audience management platform designed for scalable campaign orchestration, queue-driven delivery workflows, analytics tracking, and operational reliability.
+Enterprise-grade email campaign and audience management platform designed for scalable campaign orchestration, queue-driven delivery workflows, analytics tracking, and operational reliability.
 
 The platform supports asynchronous email processing, audience segmentation, delivery telemetry, analytics aggregation, unsubscribe compliance, and distributed worker infrastructure using cloud-native services.
 
@@ -153,7 +153,7 @@ The platform uses JWT-based authentication with role-aware authorization middlew
 - Refresh rotates single-use refresh tokens
 - Protected routes validate bearer tokens
 - Role checks are enforced at API/dependency level
-- Organization-scoped access prevents tenant crossover
+- Organization-scoped access prevents cross-organization data leakage
 - No public registration route is exposed
 
 ## Bootstrap Onboarding Flow
@@ -434,6 +434,12 @@ Backend services are configured for deployment on Render using containerized ser
 - Send Worker
 - Scheduler Worker
 
+### Runtime Commands
+
+- API: `gunicorn -k uvicorn.workers.UvicornWorker app.main:app --bind 0.0.0.0:$PORT`
+- Send Worker: `python -m app.workers.send_worker`
+- Scheduler Worker: `python -m app.workers.scheduler`
+
 ## Frontend Deployment
 
 Frontend deployment is configured for Netlify using Vite production builds.
@@ -563,6 +569,9 @@ https://email-campaign-api-clwb.onrender.com/openapi.json
 - CI/CD workflows operational
 - Runtime stabilization in progress
 - Auth/RBAC hardening active (bootstrap + role-scoped authorization paths)
+- CSP hardened with route-specific allowances for `/docs` and `/redoc`
+- Worker retry + DLQ flow active with Redis-backed retry counters
+- Event telemetry persisted for sent/delivered/opened/clicked/bounced/complained/unsubscribed
 
 ---
 

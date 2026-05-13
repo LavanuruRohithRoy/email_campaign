@@ -8,6 +8,7 @@ from app.models.contacts import Contact, SuppressionList
 from app.models.enums import ContactStatus, EventType, SendStatus, SuppressionReason
 from app.models.tracking import EmailEvent
 from app.schemas.webhook import SESNotificationPayload
+from app.utils.analytics_cache import invalidate_analytics_cache
 
 
 async def suppress_contact(
@@ -137,6 +138,7 @@ async def process_bounce_notification(payload: SESNotificationPayload, db: Async
     await record_bounce_event(send.campaign_id, send.contact_id, metadata, db)
     if payload.bounce.bounceType == "Permanent":
         await suppress_contact(contact.org_id, contact.email, SuppressionReason.BOUNCED, db)
+    await invalidate_analytics_cache(contact.org_id, send.campaign_id)
 
 
 async def process_complaint_notification(payload: SESNotificationPayload, db: AsyncSession) -> None:
@@ -155,6 +157,7 @@ async def process_complaint_notification(payload: SESNotificationPayload, db: As
     }
     await record_complaint_event(send.campaign_id, send.contact_id, metadata, db)
     await suppress_contact(contact.org_id, contact.email, SuppressionReason.COMPLAINED, db)
+    await invalidate_analytics_cache(contact.org_id, send.campaign_id)
 
 
 async def process_delivery_notification(payload: SESNotificationPayload, db: AsyncSession) -> None:
@@ -163,7 +166,28 @@ async def process_delivery_notification(payload: SESNotificationPayload, db: Asy
     if not send:
         return
     send.status = SendStatus.DELIVERED
+    existing = await db.scalar(
+        select(EmailEvent).where(
+            EmailEvent.contact_id == send.contact_id,
+            EmailEvent.campaign_id == send.campaign_id,
+            EmailEvent.event_type == EventType.DELIVERED,
+        )
+    )
+    if existing is None:
+        db.add(
+            EmailEvent(
+                contact_id=send.contact_id,
+                campaign_id=send.campaign_id,
+                event_type=EventType.DELIVERED,
+                metadata_={"ses_message_id": ses_message_id},
+            )
+        )
     await db.commit()
+    campaign_org_id = await db.scalar(
+        select(Contact.org_id).where(Contact.id == send.contact_id)
+    )
+    if campaign_org_id is not None:
+        await invalidate_analytics_cache(campaign_org_id, send.campaign_id)
 
 
 async def process_ses_notification(payload: SESNotificationPayload, db: AsyncSession) -> None:

@@ -6,8 +6,10 @@ from datetime import datetime, timezone
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.models.campaigns import Campaign
 from app.models.enums import EventType, TokenType
 from app.models.tracking import EmailEvent, TrackingToken
+from app.utils.analytics_cache import invalidate_analytics_cache
 
 logger = logging.getLogger(__name__)
 
@@ -50,6 +52,11 @@ async def record_open(token: str, ip_address: str, user_agent: str, db: AsyncSes
         )
     )
     await db.commit()
+    campaign_org_id = await db.scalar(
+        select(Campaign.org_id).where(Campaign.id == tracking.campaign_id)
+    )
+    if campaign_org_id is not None:
+        await invalidate_analytics_cache(campaign_org_id, tracking.campaign_id)
     logger.info("Open recorded contact=%s campaign=%s", tracking.contact_id, tracking.campaign_id)
     return True
 
@@ -72,5 +79,10 @@ async def record_click(token: str, ip_address: str, user_agent: str, db: AsyncSe
         )
     )
     await db.commit()
+    campaign_org_id = await db.scalar(
+        select(Campaign.org_id).where(Campaign.id == tracking.campaign_id)
+    )
+    if campaign_org_id is not None:
+        await invalidate_analytics_cache(campaign_org_id, tracking.campaign_id)
     logger.info("Click recorded contact=%s url=%s", tracking.contact_id, tracking.target_url)
     return tracking.target_url

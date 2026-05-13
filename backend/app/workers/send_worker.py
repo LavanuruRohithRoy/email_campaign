@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import signal
 from datetime import datetime, timezone
 from typing import Any
 from uuid import UUID
@@ -16,6 +17,7 @@ from app.models.contacts import Contact, SuppressionList
 from app.models.enums import CampaignStatus, ContactStatus, EventType, SendStatus
 from app.models.tracking import EmailEvent
 from app.utils.ses import delete_sqs_message, receive_sqs_messages, send_email_via_ses
+from app.utils.analytics_cache import invalidate_analytics_cache
 from app.utils.token import (
     create_tracking_tokens,
     extract_links_from_html,
@@ -24,8 +26,6 @@ from app.utils.token import (
 )
 
 logger = logging.getLogger(__name__)
-_running = True
-_shutdown_event = None
 
 
 async def process_send_message(message: dict[str, object], db: AsyncSession | None = None) -> bool:
@@ -147,6 +147,7 @@ async def _process_send_message(message: dict[str, object], db: AsyncSession) ->
         )
     )
     await db.commit()
+    await invalidate_analytics_cache(campaign.org_id, campaign_id)
 
     total = await db.scalar(
         select(func.count(CampaignSend.id)).where(CampaignSend.campaign_id == campaign_id)
@@ -229,81 +230,27 @@ async def worker_loop() -> None:
     from redis.asyncio import Redis
 
     redis = Redis.from_url(settings.REDIS_URL, encoding="utf-8", decode_responses=True)
+    shutdown_event = asyncio.Event()
+    loop = asyncio.get_running_loop()
 
-    async def _handle_message(m: dict[str, Any]) -> None:
-        async with semaphore:
+    def _request_shutdown(sig_name: str) -> None:
+        logger.info("Received shutdown signal: %s", sig_name)
+        if not shutdown_event.is_set():
+            shutdown_event.set()
+
+    for sig in (signal.SIGTERM, signal.SIGINT):
+        try:
+            loop.add_signal_handler(sig, _request_shutdown, sig.name)
+        except (NotImplementedError, RuntimeError):
             try:
-                should_delete = await process_send_message(m)
-                if should_delete:
-                    await delete_sqs_message(settings.AWS_SQS_SEND_QUEUE_URL, str(m["receipt_handle"]))
-                await asyncio.sleep(1.0 / settings.MAX_SES_SEND_RATE)
-                return
+                def _fallback_handler(_signum: int, _frame: object, sig_name: str = sig.name) -> None:
+                    _request_shutdown(sig_name)
 
-            except Exception as exc:
-                # Determine retry key based on campaign_id/contact_id if possible
-                try:
-                    body = m.get("body", {})
-                    campaign_id = str(body.get("campaign_id"))
-                    contact_id = str(body.get("contact_id"))
-                    retry_key = f"send_retry:{campaign_id}:{contact_id}"
-                except Exception:
-                    receipt = m.get('receipt_handle')
-                    retry_key = f"send_retry:unknown:{str(receipt)[:16] if receipt is not None else 'unknown'}"
+                signal.signal(sig, _fallback_handler)
+            except Exception:
+                pass
 
-                try:
-                    attempts = await redis.incr(retry_key)
-                    if attempts == 1:
-                        await redis.expire(retry_key, 24 * 3600)
-                except Exception:
-                    attempts = 1
-
-                logger.warning(
-                    "Send worker processing error; attempt=%s key=%s error=%s",
-                    attempts,
-                    retry_key,
-                    exc,
-                )
-
-                # Exponential backoff before next retry
-                try:
-                    backoff = min(2 ** attempts, 60)
-                    await asyncio.sleep(backoff)
-                except Exception:
-                    pass
-
-                if attempts > settings.WORKER_MAX_RETRIES:
-                    # Push to DLQ if configured
-                    try:
-                        from app.utils.ses import send_message_to_dlq
-
-                        await send_message_to_dlq(settings.AWS_SQS_DLQ_URL or "", m.get("body", {}))
-                        await delete_sqs_message(settings.AWS_SQS_SEND_QUEUE_URL, str(m["receipt_handle"]))
-                        logger.error("Message moved to DLQ key=%s attempts=%s", retry_key, attempts)
-                    except Exception as e:
-                        logger.error("Failed to move message to DLQ: %s", e)
-
-    # Use module-level handler for processing with retries
-    
-        
-
-    # Graceful shutdown handling
-    loop = asyncio.get_event_loop()
-
-    def _on_signal(sig):
-        nonlocal _shutdown_event
-        logger.info("Received shutdown signal: %s", sig)
-        if _shutdown_event and not _shutdown_event.is_set():
-            _shutdown_event.set()
-
-    try:
-        loop.add_signal_handler
-    except Exception:
-        # Windows loop may not support add_signal_handler in same way
-        pass
-
-    _shutdown_event = asyncio.Event()
-
-    while _running and not _shutdown_event.is_set():
+    while not shutdown_event.is_set():
         try:
             messages = await receive_sqs_messages(settings.AWS_SQS_SEND_QUEUE_URL)
             tasks: list[asyncio.Task[None]] = []

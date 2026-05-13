@@ -323,6 +323,34 @@ async def test_invalid_ses_message_id_handled_safely(async_client):
     assert response.json()["status"] == "processed"
 
 
+async def test_delivery_event_recorded(async_client, db_session, seed_bounce_data: dict[str, object]):
+    payload = {
+        "notificationType": "Delivery",
+        "mail": {
+            "messageId": seed_bounce_data["send"].ses_message_id,
+            "timestamp": "2026-05-11T12:00:00Z",
+            "source": "sender@example.com",
+            "destination": [seed_bounce_data["contact"].email],
+        },
+        "delivery": {
+            "timestamp": "2026-05-11T12:00:00Z",
+            "processingTimeMillis": 1000,
+            "recipients": [seed_bounce_data["contact"].email],
+        },
+    }
+    response = await async_client.post("/webhooks/ses", json=_sns_envelope(payload))
+    assert response.status_code == 200
+
+    event = await db_session.scalar(
+        select(EmailEvent).where(
+            EmailEvent.contact_id == seed_bounce_data["contact"].id,
+            EmailEvent.campaign_id == seed_bounce_data["campaign"].id,
+            EmailEvent.event_type == EventType.DELIVERED,
+        )
+    )
+    assert event is not None
+
+
 @patch("httpx.AsyncClient.get")
 async def test_subscription_confirmation_handled(mock_get, async_client):
     mock_get.return_value = None

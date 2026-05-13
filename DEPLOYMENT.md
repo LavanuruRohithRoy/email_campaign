@@ -45,6 +45,8 @@ cd backend
 python -m app.workers.send_worker
 python -m app.workers.scheduler
 ```
+Render workers should use the same environment variable set as the API service, including
+`WORKER_CONCURRENCY`, `WORKER_MAX_RETRIES`, `SQS_POLL_WAIT_SECONDS`, and `SQS_MAX_MESSAGES`.
 
 ## 5) Frontend Build/Deploy
 ```bash
@@ -84,12 +86,23 @@ Application IAM principal needs:
 - Retry state is tracked in Redis per campaign/contact
 - On retry exhaustion (`WORKER_MAX_RETRIES`), payload is forwarded to DLQ
 - DLQ messages can be replayed manually after root-cause remediation
+- Workers support graceful shutdown for SIGTERM/SIGINT so Render can stop instances cleanly
 
-## 10) Healthchecks
+## 10) SES/SNS Event Flow
+- SES events are delivered through SNS to `/webhooks/ses`
+- Webhook processing updates delivery status, suppression state, and analytics events
+- Event types handled: delivered, bounced, complained, opened, clicked, unsubscribed
+
+## 11) Healthchecks
 - `/health/live` and `/health/ready`
 - `/api/v1/health/live` and `/api/v1/health/ready`
 
-## 11) Final Pre-Hosting Checklist
+## 12) API Docs Endpoints
+- `/docs`
+- `/redoc`
+- `/openapi.json`
+
+## 13) Final Pre-Hosting Checklist
 - CI workflows passing
 - Render/Netlify config files updated
 - Env values set in platform dashboards

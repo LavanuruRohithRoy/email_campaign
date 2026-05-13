@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import signal
 from datetime import datetime, timezone
 
 from sqlalchemy import select
@@ -38,12 +39,33 @@ async def check_scheduled_campaigns(db: AsyncSession | None = None) -> None:
 
 async def scheduler_loop() -> None:
     logger.info("Scheduler started")
-    while True:
+    shutdown_event = asyncio.Event()
+    loop = asyncio.get_running_loop()
+
+    def _request_shutdown(sig_name: str) -> None:
+        logger.info("Received shutdown signal: %s", sig_name)
+        if not shutdown_event.is_set():
+            shutdown_event.set()
+
+    for sig in (signal.SIGTERM, signal.SIGINT):
+        try:
+            loop.add_signal_handler(sig, _request_shutdown, sig.name)
+        except (NotImplementedError, RuntimeError):
+            try:
+                def _fallback_handler(_signum: int, _frame: object, sig_name: str = sig.name) -> None:
+                    _request_shutdown(sig_name)
+
+                signal.signal(sig, _fallback_handler)
+            except Exception:
+                pass
+
+    while not shutdown_event.is_set():
         try:
             await check_scheduled_campaigns()
         except Exception as exc:
             logger.error("Scheduler error: %s", exc)
         await asyncio.sleep(60)
+    logger.info("Scheduler stopped")
 
 
 if __name__ == "__main__":
