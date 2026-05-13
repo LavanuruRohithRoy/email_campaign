@@ -82,5 +82,7 @@ async def test_docs_and_redoc_csp_allows_required_assets(async_client):
 
     docs_csp = docs.headers.get("Content-Security-Policy", "")
     redoc_csp = redoc.headers.get("Content-Security-Policy", "")
-    assert "cdn.jsdelivr.net" in docs_csp
-    assert "cdn.jsdelivr.net" in redoc_csp
+    assert "script-src" in docs_csp
+    assert "worker-src 'self' blob:" in docs_csp
+    assert "script-src" in redoc_csp
+    assert "worker-src 'self' blob:" in redoc_csp
