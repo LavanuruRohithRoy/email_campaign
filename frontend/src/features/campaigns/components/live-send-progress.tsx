@@ -24,6 +24,10 @@ export function LiveSendProgress({ campaignId }: { campaignId: string }) {
       <CardContent>
         {progress.isLoading ? (
           <Skeleton className="h-20 w-full" />
+        ) : progress.isError ? (
+          <div className="rounded-md border border-destructive/40 bg-destructive/5 p-3 text-sm text-destructive">
+            Live send progress is temporarily unavailable.
+          </div>
         ) : (
           <div className="grid gap-3">
             <div className="h-3 overflow-hidden rounded-full bg-muted">

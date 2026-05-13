@@ -69,3 +69,18 @@ async def test_health_endpoints(async_client):
     # readiness may report detailed component errors; ensure JSON response returned
     assert r2.status_code == 200
     assert "status" in r2.json()
+
+
+async def test_docs_and_redoc_csp_allows_required_assets(async_client):
+    docs = await async_client.get("/docs")
+    redoc = await async_client.get("/redoc")
+    openapi = await async_client.get("/openapi.json")
+
+    assert docs.status_code == 200
+    assert redoc.status_code == 200
+    assert openapi.status_code == 200
+
+    docs_csp = docs.headers.get("Content-Security-Policy", "")
+    redoc_csp = redoc.headers.get("Content-Security-Policy", "")
+    assert "https://cdn.jsdelivr.net" in docs_csp
+    assert "https://cdn.jsdelivr.net" in redoc_csp

@@ -12,6 +12,7 @@ from app.models.enums import (
     ContactStatus,
     EventType,
 )
+from app.utils.analytics_cache import invalidate_analytics_cache
 
 
 async def resolve_unsubscribe_token(
@@ -61,6 +62,7 @@ async def unsubscribe_contact(
             )
         )
     await db.commit()
+    await invalidate_analytics_cache(contact.org_id, tracking.campaign_id)
     return True
 
 
@@ -94,4 +96,5 @@ async def update_preferences(
 
     await db.commit()
     await db.refresh(contact)
+    await invalidate_analytics_cache(contact.org_id, tracking.campaign_id)
     return contact

@@ -51,6 +51,51 @@ services:
     plan: starter
     autoDeploy: false
     startCommand: python -m app.workers.send_worker
+    envVars:
+      - key: APP_ENV
+        sync: false
+      - key: APP_BASE_URL
+        sync: false
+      - key: SECRET_KEY
+        sync: false
+      - key: JWT_SECRET
+        sync: false
+      - key: DATABASE_URL
+        sync: false
+      - key: DATABASE_URL_SYNC
+        sync: false
+      - key: REDIS_URL
+        sync: false
+      - key: AWS_ACCESS_KEY_ID
+        sync: false
+      - key: AWS_SECRET_ACCESS_KEY
+        sync: false
+      - key: AWS_REGION
+        sync: false
+      - key: AWS_S3_BUCKET
+        sync: false
+      - key: AWS_SQS_SEND_QUEUE_URL
+        sync: false
+      - key: AWS_SQS_EVENTS_QUEUE_URL
+        sync: false
+      - key: AWS_SQS_DLQ_URL
+        sync: false
+      - key: AWS_SES_CONFIG_SET
+        sync: false
+      - key: ALLOWED_ORIGINS
+        sync: false
+      - key: VITE_API_BASE_URL
+        sync: false
+      - key: MAX_SES_SEND_RATE
+        sync: false
+      - key: SQS_POLL_WAIT_SECONDS
+        sync: false
+      - key: SQS_MAX_MESSAGES
+        sync: false
+      - key: WORKER_CONCURRENCY
+        sync: false
+      - key: WORKER_MAX_RETRIES
+        sync: false
 
   - type: worker
     name: email-scheduler-worker
@@ -60,3 +105,48 @@ services:
     plan: starter
     autoDeploy: false
     startCommand: python -m app.workers.scheduler
+    envVars:
+      - key: APP_ENV
+        sync: false
+      - key: APP_BASE_URL
+        sync: false
+      - key: SECRET_KEY
+        sync: false
+      - key: JWT_SECRET
+        sync: false
+      - key: DATABASE_URL
+        sync: false
+      - key: DATABASE_URL_SYNC
+        sync: false
+      - key: REDIS_URL
+        sync: false
+      - key: AWS_ACCESS_KEY_ID
+        sync: false
+      - key: AWS_SECRET_ACCESS_KEY
+        sync: false
+      - key: AWS_REGION
+        sync: false
+      - key: AWS_S3_BUCKET
+        sync: false
+      - key: AWS_SQS_SEND_QUEUE_URL
+        sync: false
+      - key: AWS_SQS_EVENTS_QUEUE_URL
+        sync: false
+      - key: AWS_SQS_DLQ_URL
+        sync: false
+      - key: AWS_SES_CONFIG_SET
+        sync: false
+      - key: ALLOWED_ORIGINS
+        sync: false
+      - key: VITE_API_BASE_URL
+        sync: false
+      - key: MAX_SES_SEND_RATE
+        sync: false
+      - key: SQS_POLL_WAIT_SECONDS
+        sync: false
+      - key: SQS_MAX_MESSAGES
+        sync: false
+      - key: WORKER_CONCURRENCY
+        sync: false
+      - key: WORKER_MAX_RETRIES
+        sync: false

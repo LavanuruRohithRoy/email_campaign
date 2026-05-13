@@ -19,6 +19,7 @@ export function CampaignReportPage() {
   const analytics = useCampaignAnalytics(id);
   const opens = useOpenTimeseries(30);
   const clicks = useClickTimeseries(30);
+  const hasError = analytics.isError || opens.isError || clicks.isError;
   const exportMutation = useMutation({
     mutationFn: () => exportCampaignCsv(id),
     onSuccess: (data) => {
@@ -40,6 +41,11 @@ export function CampaignReportPage() {
           {exportMutation.isPending ? "Exporting" : "Export CSV"}
         </Button>
       </div>
+      {hasError ? (
+        <div className="rounded-md border border-destructive/40 bg-destructive/5 p-3 text-sm text-destructive">
+          Campaign report data is partially unavailable. Please retry.
+        </div>
+      ) : null}
       <LiveSendProgress campaignId={id} />
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <StatCard label="Sent" value={analytics.data?.sent} icon={MailCheck} loading={analytics.isLoading} />

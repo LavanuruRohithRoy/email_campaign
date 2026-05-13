@@ -186,10 +186,10 @@ def _build_csp(path: str) -> str:
     worker_src = "'none'"
 
     if path.startswith("/docs") or path.startswith("/redoc"):
-        script_src = "'self' https://cdn.jsdelivr.net 'unsafe-inline'"
-        style_src = "'self' https://cdn.jsdelivr.net 'unsafe-inline'"
+        script_src = "'self' https://cdn.jsdelivr.net https://unpkg.com 'unsafe-inline'"
+        style_src = "'self' https://cdn.jsdelivr.net https://fonts.googleapis.com 'unsafe-inline'"
         font_src = "'self' data: https://cdn.jsdelivr.net https://fonts.gstatic.com"
-        connect_src = "'self' https://cdn.jsdelivr.net"
+        connect_src = "'self' https://cdn.jsdelivr.net https://unpkg.com"
         worker_src = "'self' blob:"
 
     return (

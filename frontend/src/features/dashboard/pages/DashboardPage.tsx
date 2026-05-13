@@ -14,6 +14,7 @@ export function DashboardPage() {
   const opens = useOpenTimeseries(30);
   const clicks = useClickTimeseries(30);
   const topCampaigns = useTopCampaigns(5);
+  const hasError = dashboard.isError || opens.isError || clicks.isError || topCampaigns.isError;
 
   return (
     <section className="grid gap-5">
@@ -21,6 +22,11 @@ export function DashboardPage() {
         <h2 className="text-2xl font-semibold tracking-normal">Dashboard</h2>
         <p className="text-sm text-muted-foreground">Live analytics from subscriber events and campaign activity.</p>
       </div>
+      {hasError ? (
+        <div className="rounded-md border border-destructive/40 bg-destructive/5 p-3 text-sm text-destructive">
+          Some analytics data could not be loaded. Please retry.
+        </div>
+      ) : null}
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <StatCard label="Total contacts" value={dashboard.data?.total_contacts} icon={ContactRound} loading={dashboard.isLoading} />
         <StatCard label="Active contacts" value={dashboard.data?.active_contacts} icon={ListChecks} loading={dashboard.isLoading} />
