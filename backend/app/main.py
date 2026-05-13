@@ -11,6 +11,7 @@ from fastapi.openapi.utils import get_openapi
 from fastapi.responses import JSONResponse
 from redis.asyncio import Redis
 from sqlalchemy import select
+from sqlalchemy.exc import SQLAlchemyError
 
 from app.config import settings
 from app.database import sync_engine
@@ -142,7 +143,7 @@ def _bootstrap_openapi_enabled() -> bool:
         with sync_engine.connect() as conn:
             first_user_exists = conn.execute(select(User.id).limit(1)).scalar_one_or_none()
         return first_user_exists is None
-    except Exception:
+    except SQLAlchemyError:
         logger.warning(
             "Unable to evaluate bootstrap docs visibility from database state, defaulting to visible",
             exc_info=True,

@@ -13,6 +13,7 @@ from app.models.core import Organisation, RefreshToken, User
 from app.models.enums import UserRole
 from app.utils.security import create_access_token, hash_password, verify_password
 
+# Static, service-specific advisory lock id used to serialize bootstrap requests.
 BOOTSTRAP_ADVISORY_LOCK_KEY = 918273645
 
 
@@ -128,6 +129,7 @@ async def bootstrap_super_admin(
     full_name: str | None = None,
 ) -> User:
     async with db.begin():
+        # Transaction-scoped PostgreSQL advisory lock prevents concurrent bootstrap races.
         await db.execute(
             text("SELECT pg_advisory_xact_lock(:lock_key)"),
             {"lock_key": BOOTSTRAP_ADVISORY_LOCK_KEY},
