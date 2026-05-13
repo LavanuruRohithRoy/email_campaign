@@ -121,7 +121,10 @@ def _bootstrap_openapi_enabled() -> bool:
             first_user_exists = conn.execute(select(User.id).limit(1)).scalar_one_or_none()
         return first_user_exists is None
     except Exception:
-        logger.warning("Unable to evaluate bootstrap docs visibility from database state", exc_info=True)
+        logger.warning(
+            "Unable to evaluate bootstrap docs visibility from database state, defaulting to visible",
+            exc_info=True,
+        )
         return True
 
 
@@ -151,6 +154,7 @@ app.include_router(contacts_router, prefix="/api/v1/contacts", tags=["Contacts"]
 app.include_router(lists_router, prefix="/api/v1/lists", tags=["Lists"])
 app.include_router(segments_router, prefix="/api/v1/segments", tags=["Segments"])
 app.include_router(templates_router, prefix="/api/v1/templates", tags=["Templates"])
+# Keep template builder endpoints grouped under Templates for a single docs section.
 app.include_router(template_builder_router, prefix="/api/v1/templates/builder", tags=["Templates"])
 app.include_router(campaigns_router, prefix="/api/v1/campaigns", tags=["Campaigns"])
 app.include_router(analytics_router, prefix="/api/v1/analytics", tags=["Analytics"])
