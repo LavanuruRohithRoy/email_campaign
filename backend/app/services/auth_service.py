@@ -150,8 +150,9 @@ async def bootstrap_super_admin(
             is_active=True,
         )
         db.add(user)
+        await db.flush()
+        await db.refresh(user)
 
-    await db.refresh(user)
     return user
 
 

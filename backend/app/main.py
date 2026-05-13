@@ -60,7 +60,29 @@ async def lifespan(_: FastAPI) -> AsyncGenerator[None, None]:
     logger.info("shutting down")
 
 
-app = FastAPI(title="Email Campaign Platform", version="1.0.0", lifespan=lifespan)
+class EmailCampaignAPI(FastAPI):
+    def openapi(self) -> dict:
+        bootstrap_enabled = _bootstrap_openapi_enabled()
+        cached_schema = getattr(self.state, "dynamic_openapi_schema", None)
+        cached_state = getattr(self.state, "dynamic_openapi_bootstrap_enabled", None)
+        if cached_schema is not None and cached_state == bootstrap_enabled:
+            return cached_schema
+
+        schema = get_openapi(
+            title=self.title,
+            version=self.version,
+            routes=self.routes,
+            description=self.description,
+        )
+        if not bootstrap_enabled:
+            schema.get("paths", {}).pop("/api/v1/auth/bootstrap", None)
+
+        self.state.dynamic_openapi_schema = schema
+        self.state.dynamic_openapi_bootstrap_enabled = bootstrap_enabled
+        return schema
+
+
+app = EmailCampaignAPI(title="Email Campaign Platform", version="1.0.0", lifespan=lifespan)
 
 
 async def _validation_exception_handler(request: Request, exc: RequestValidationError) -> JSONResponse:
@@ -127,27 +149,6 @@ def _bootstrap_openapi_enabled() -> bool:
         )
         return True
 
-
-def custom_openapi() -> dict:
-    bootstrap_enabled = _bootstrap_openapi_enabled()
-    if app.openapi_schema is not None and getattr(app.state, "openapi_bootstrap_enabled", None) == bootstrap_enabled:
-        return app.openapi_schema
-
-    schema = get_openapi(
-        title=app.title,
-        version=app.version,
-        routes=app.routes,
-        description=app.description,
-    )
-    if not bootstrap_enabled:
-        schema.get("paths", {}).pop("/api/v1/auth/bootstrap", None)
-
-    app.openapi_schema = schema
-    app.state.openapi_bootstrap_enabled = bootstrap_enabled
-    return app.openapi_schema
-
-
-app.openapi = custom_openapi  # type: ignore[method-assign]
 
 app.include_router(auth_router, prefix="/api/v1/auth", tags=["Auth"])
 app.include_router(contacts_router, prefix="/api/v1/contacts", tags=["Contacts"])
