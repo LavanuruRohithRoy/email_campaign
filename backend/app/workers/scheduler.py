@@ -52,7 +52,10 @@ async def scheduler_loop() -> None:
             loop.add_signal_handler(sig, _request_shutdown, sig.name)
         except (NotImplementedError, RuntimeError):
             try:
-                signal.signal(sig, lambda _s, _f, name=sig.name: _request_shutdown(name))
+                def _fallback_handler(_signum: int, _frame: object, sig_name: str = sig.name) -> None:
+                    _request_shutdown(sig_name)
+
+                signal.signal(sig, _fallback_handler)
             except Exception:
                 pass
 
