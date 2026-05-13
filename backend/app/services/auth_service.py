@@ -5,13 +5,16 @@ from datetime import datetime, timedelta, timezone
 from uuid import UUID
 
 from redis.asyncio import Redis
-from sqlalchemy import func, select
+from sqlalchemy import func, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.middleware.rate_limit import check_login_rate_limit, reset_login_rate_limit
 from app.models.core import Organisation, RefreshToken, User
 from app.models.enums import UserRole
 from app.utils.security import create_access_token, hash_password, verify_password
+
+# Static, service-specific advisory lock id used to serialize bootstrap requests.
+BOOTSTRAP_ADVISORY_LOCK_KEY = 918273645
 
 
 async def login(
@@ -125,25 +128,33 @@ async def bootstrap_super_admin(
     db: AsyncSession,
     full_name: str | None = None,
 ) -> User:
-    first_user_exists = await db.scalar(select(User.id).limit(1))
-    if first_user_exists is not None:
-        raise ValueError("BOOTSTRAP_DISABLED")
+    async with db.begin():
+        # Transaction-scoped PostgreSQL advisory lock prevents concurrent bootstrap races.
+        await db.execute(
+            text("SELECT pg_advisory_xact_lock(:lock_key)"),
+            {"lock_key": BOOTSTRAP_ADVISORY_LOCK_KEY},
+        )
 
-    organisation = Organisation(name="Primary Organisation")
-    db.add(organisation)
-    await db.flush()
+        first_user_exists = await db.scalar(select(User.id).limit(1))
+        if first_user_exists is not None:
+            raise ValueError("BOOTSTRAP_DISABLED")
 
-    user = User(
-        org_id=organisation.id,
-        email=email,
-        password_hash=hash_password(password),
-        full_name=full_name,
-        role=UserRole.SUPER_ADMIN,
-        is_active=True,
-    )
-    db.add(user)
-    await db.commit()
-    await db.refresh(user)
+        organisation = Organisation(name="Primary Organisation")
+        db.add(organisation)
+        await db.flush()
+
+        user = User(
+            org_id=organisation.id,
+            email=email,
+            password_hash=hash_password(password),
+            full_name=full_name,
+            role=UserRole.SUPER_ADMIN,
+            is_active=True,
+        )
+        db.add(user)
+        await db.flush()
+        await db.refresh(user)
+
     return user
 
 

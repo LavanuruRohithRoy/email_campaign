@@ -171,6 +171,23 @@ async def test_bootstrap_disabled_when_users_exist(async_client, seed_user):
     assert response.json()["detail"]["code"] == "BOOTSTRAP_DISABLED"
 
 
+async def test_bootstrap_hidden_from_openapi_after_initialization(async_client, seed_user):
+    response = await async_client.get("/openapi.json")
+    assert response.status_code == 200
+    assert "/api/v1/auth/bootstrap" not in response.json()["paths"]
+
+
+async def test_bootstrap_visible_in_openapi_before_initialization(async_client, db_session):
+    await db_session.execute(delete(RefreshToken))
+    await db_session.execute(delete(User))
+    await db_session.execute(delete(Organisation))
+    await db_session.commit()
+
+    response = await async_client.get("/openapi.json")
+    assert response.status_code == 200
+    assert "/api/v1/auth/bootstrap" in response.json()["paths"]
+
+
 async def test_super_admin_can_create_and_list_users(async_client, db_session):
     await db_session.execute(delete(RefreshToken))
     await db_session.execute(delete(User))

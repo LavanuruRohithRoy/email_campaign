@@ -162,6 +162,7 @@ The platform uses JWT-based authentication with role-aware authorization middlew
 - Allowed only when `users` table is empty
 - Creates first `super_admin` and primary organization
 - Returns `403 BOOTSTRAP_DISABLED` once any user already exists
+- Bootstrap visibility in `/docs`, `/redoc`, and `/openapi.json` is dynamically removed after initialization completes
 
 ## Role Access Hierarchy
 
@@ -177,6 +178,7 @@ The platform uses JWT-based authentication with role-aware authorization middlew
 - `/api/v1/auth/bootstrap`: unauthenticated, single-use bootstrap window only
 - Contacts/lists/segments/templates/campaign mutations: `super_admin`, `campaign_manager`
 - Analytics and reporting reads: `super_admin`, `campaign_manager`, `viewer`
+- Viewer routes in UI are restricted to analytics/reporting pages; mutation routes remain blocked by backend RBAC
 - Settings controls: `super_admin` only
 
 ## Dashboard Segregation
@@ -509,6 +511,7 @@ The platform includes:
 - Rate limiting
 - Suppression enforcement
 - JWT authentication
+- JWT access token expiry + rotated single-use refresh token flow
 - Role-based authorization
 - Queue retry isolation
 - Production configuration validation
@@ -569,6 +572,8 @@ https://email-campaign-api-clwb.onrender.com/openapi.json
 - CI/CD workflows operational
 - Runtime stabilization in progress
 - Auth/RBAC hardening active (bootstrap + role-scoped authorization paths)
+- Bootstrap endpoint is database-state gated and hidden from docs/OpenAPI after first admin initialization
+- Swagger/ReDoc grouping cleaned with unified Auth/Contacts/Campaigns/Templates/Analytics sections
 - CSP hardened with route-specific allowances for `/docs` and `/redoc`
 - Worker retry + DLQ flow active with Redis-backed retry counters
 - Event telemetry persisted for sent/delivered/opened/clicked/bounced/complained/unsubscribed
